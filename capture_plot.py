@@ -3,6 +3,7 @@ import mplfinance as mpf
 
 import pandas as pd
 import numpy as np
+from datetime import datetime
 
 import os
 #from time import sleep
@@ -13,8 +14,7 @@ import matplotlib.patches as patches
 #   %matplotlib widget
 #%matplotlib notebook
 
-
-
+MARK_WIDTH = 3
 
 class plt_capture_onclick:
     """ interactive plot, chart marking data collector """
@@ -31,23 +31,23 @@ class plt_capture_onclick:
 
         fig.canvas.toolbar_visible = False
         fig.canvas.header_visible = False
-        fig.canvas.footer_visible = False
+        fig.canvas.footer_visible = True
         
         ax.set_ylabel('price')
         ax.set_xlabel('time')
         ax.set_title("Interactive chart of "+ pair_name)
       
         self.cid = fig.canvas.mpl_connect('button_press_event', self.add_data)
-
+     
         if load_filename:
             self.load_from_file()
 
         mpf.plot(pair_df, type='candle', ax=ax, warn_too_much_data=2500)
 
         # Create CheckButtons widget
-        self.checkbox_ax = plt.axes([0.85, 0.01, 0.1, 0.05])  # Adjust position and size as needed
-        self.checkbox = CheckButtons(self.checkbox_ax, labels=['EWT map'], actives=[False])
-        self.checkbox.on_clicked(self.on_checkbox_clicked)
+        # self.checkbox_ax = plt.axes([0.85, 0.01, 0.1, 0.05])  #  position and size
+        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['EWT map'], actives=[False])
+        # self.checkbox.on_clicked(self.on_checkbox_clicked)
 
         plt.show()
 
@@ -72,11 +72,6 @@ class plt_capture_onclick:
     def remove_ewt(self):
         # This is just a placeholder function, you can customize it to remove the drawing
         self.captured_output = "should rewmove waves from the chart"
-
-
-
-
-
 
 
     def save_to_file(self):
@@ -131,13 +126,12 @@ class plt_capture_onclick:
 
             h2w_factor = ax_h / ax_w  
 
-            ecl_w = 3
-            ecl_h = h2w_factor  * 10/6 #
+            ecl_w = MARK_WIDTH
+            ecl_h = h2w_factor  * 10/6 #ratio
 
-
-
-            self.captured_output = str((x_coord, y_coord, ax_h, ax_w, ecl_h, ecl_w))
-      
+            self.captured_output = f"Coords: ({x_coord}, {y_coord})"            
+            print(self.captured_output)
+ 
             color = 'green' if event.button == 1 else 'red'
             ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
             buy = 1 if event.button == 1 else 0

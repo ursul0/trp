@@ -1,5 +1,5 @@
 
-from data_proc import get_historic_data, get_all_historic_data, read_data_tail
+from data_proc import get_historic_data, get_all_historic_data, read_data_tail, _get_creds
 from capture_plot import plt_capture_onclick
 
 from datetime import datetime, timedelta
@@ -7,10 +7,11 @@ import os
 
 from scr import bnc_key, bnc_sec
 
+# =====================================
 
-TOTAL_CANDLES = 200
+TOTAL_CANDLES = 100
 SYMBOL = 'BTCUSDT'
-INTERVAL ='15m'
+INTERVAL ='1h'
 
 
 current_datetime = datetime.today()

@@ -11,15 +11,15 @@ import pandas as pd #for data structure
 #get API keys
 from scr import bnc_key, bnc_sec
 
-def get_creds():
+def _get_creds():
     #pass API keys
     return bnc_key, bnc_sec
     
 def get_all_historic_data(symbol, interval, filename, key=None, secret=None):
 
     if key is None or secret is None:
-    key, secret = get_creds()
-    
+        key, secret = _get_creds()
+
     client = Client(key, secret)
 
     # get timestamp of earliest date data is available
@@ -31,10 +31,13 @@ def get_all_historic_data(symbol, interval, filename, key=None, secret=None):
     # valid intervals - 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M
     bars = client.get_historical_klines(symbol, interval, timestamp, limit=1000)
 
+    #capture 
+    bars_df =  pd.DataFrame(bars)
     dir, file = os.path.split(filename)
-    file= 'r_'+ file
+    file= 'r'+ file
     new_path = os.path.join(dir, file)
-    pair_df.to_csv(filename)
+    bars_df.to_csv(new_path)
+    del bars_df
 
     #drop all but OCHL+volume:
     for line in bars:
@@ -52,7 +55,10 @@ def get_all_historic_data(symbol, interval, filename, key=None, secret=None):
     
     return pair_df
 
-def get_historic_data(symbol, timestamp, interval, filename, key, secret):
+def get_historic_data(symbol, timestamp, interval, filename, key=None, secret=None):
+    
+    if key is None or secret is None:
+        key, secret = _get_creds()
 
     client = Client(key, secret)
 
@@ -60,10 +66,12 @@ def get_historic_data(symbol, timestamp, interval, filename, key, secret):
     # points at a time, until all data from the start point until today is returned.
     bars = client.get_historical_klines(symbol, interval, timestamp, limit=1000)
 
+    bars_df =  pd.DataFrame(bars)
     dir, file = os.path.split(filename)
-    file= 'r_'+ file
+    file= 'r'+ file
     new_path = os.path.join(dir, file)
-    pair_df.to_csv(filename)
+    bars_df.to_csv(new_path)
+    del bars_df
 
     for line in bars:
         del line[6:]
@@ -88,7 +96,7 @@ def yf_get_stock_data(symbol, start_date, end_date):
 
     stock_data = yf.download(symbol, start=start_date, end=end_date)
 
-    #TODO check why hich caps here!?
+    #TODO check why hich caps here. fix consistency.
 
     # Prepare data for mplfinance
     #ohlc = stock_data[['Open', 'High', 'Low', 'Close', 'Volume']]
