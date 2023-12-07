@@ -1,5 +1,5 @@
 
-from data_proc import get_historic_data, get_all_historic_data, read_data_tail, _get_creds
+from data_proc import get_historic_data, get_all_historic_data, read_data_tail
 from capture_plot import plt_capture_onclick
 
 from datetime import datetime, timedelta
