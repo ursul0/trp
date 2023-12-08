@@ -3,10 +3,11 @@ import mplfinance as mpf
 
 import pandas as pd
 import numpy as np
-from datetime import datetime
 
 import os
 #from time import sleep
+import time, datetime
+import matplotlib.dates as dt
 
 from matplotlib.widgets import Button, CheckButtons
 import matplotlib.patches as patches 
@@ -14,7 +15,7 @@ import matplotlib.patches as patches
 #   %matplotlib widget
 #%matplotlib notebook
 
-MARK_WIDTH = 3
+MARK_WIDTH = 1.5
 
 class plt_capture_onclick:
     """ interactive plot, chart marking data collector """
@@ -43,10 +44,11 @@ class plt_capture_onclick:
             self.load_from_file()
 
         mpf.plot(pair_df, type='candle', ax=ax, warn_too_much_data=2500)
+        # mpf.plot(pair_df, type='candle', ax=ax, warn_too_much_data=2500,mav=(7,14,50))
 
         # Create CheckButtons widget
         # self.checkbox_ax = plt.axes([0.85, 0.01, 0.1, 0.05])  #  position and size
-        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['EWT map'], actives=[False])
+        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['MA'], actives=[False])
         # self.checkbox.on_clicked(self.on_checkbox_clicked)
 
         plt.show()
@@ -56,22 +58,23 @@ class plt_capture_onclick:
         return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
 
     def on_checkbox_clicked(self, label):
-        if label == 'EWT map':
+        if label == 'MA':
             if self.checkbox.get_status()[0]:
                 # Checkbox is selected, call the function to draw something
-                self.draw_ewt()
+                self.draw_MA()
             else:
                 # Checkbox is deselected, call the function to remove the drawing
-                self.remove_ewt()
+                self.remove_MA()
 
-    def draw_ewt(self):
+    def draw_MA(self):
         # This is just a placeholder function, you can customize it to draw something on the chart
-                
-        self.captured_output = "should draw waves on the chart"
+        self.captured_output = "should draw ma on the chart"
+        # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500, mav=(50,21,7))
 
-    def remove_ewt(self):
+    def remove_MA(self):
         # This is just a placeholder function, you can customize it to remove the drawing
-        self.captured_output = "should rewmove waves from the chart"
+        self.captured_output = "should remove ma from the chart"
+        # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
 
 
     def save_to_file(self):
@@ -122,6 +125,7 @@ class plt_capture_onclick:
             ax_h_end = self.ax.get_ylim()[1]
             ax_h_st = self.ax.get_ylim()[0]
             ax_w = self.ax.get_xlim()[1] 
+
             ax_h = ax_h_end - ax_h_st
 
             h2w_factor = ax_h / ax_w  
@@ -131,6 +135,24 @@ class plt_capture_onclick:
 
             self.captured_output = f"Coords: ({x_coord}, {y_coord})"            
             print(self.captured_output)
+
+
+            # def plottm(u): return dt.date2num(datetime.datetime.utcfromtimestamp(u))
+
+            # # Convert a unix time u to plot time p, and vice versa
+            # def plottm(u): return dt.date2num(datetime.datetime.fromtimestamp(u))
+            # def unixtm(p): return time.mktime(dt.num2date(p).timetuple())
+            
+            # posix_epoch = datetime.datetime(1970, 1, 1)
+
+
+            # chart_date = dt.num2date(x_coord).strftime('%Y-%m-%d %H:%M:%S')
+            date_clicked = dt.date2num(datetime.datetime.utcfromtimestamp(x_coord))
+
+  
+            self.captured_output += f' Candle clicked at {date_clicked}'
+            print(self.captured_output)
+
  
             color = 'green' if event.button == 1 else 'red'
             ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
