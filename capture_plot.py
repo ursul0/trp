@@ -179,7 +179,6 @@ class plt_capture_onclick:
                         color = 'green' if event.button == 1 else 'red'
                         ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
                         buy = 1 if event.button == 1 else 0
-                        # self.points.append((date_clicked, x_coord, y_coord, ecl_w, ecl_h, buy, ellipse))
                         self.points.append((date_clicked, x_coord, y_coord, m_candle_idx, ecl_w, ecl_h, buy, ellipse))
                         self.ax.add_patch(ellipse)
 
@@ -192,7 +191,7 @@ class plt_capture_onclick:
         else:
             self.captured_output ="Clicked outside the axes"   
         
-        print(self.captured_output)
+        # print(self.captured_output)
 
 
 
