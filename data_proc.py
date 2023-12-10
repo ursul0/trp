@@ -44,11 +44,15 @@ def get_all_historic_data(symbol, interval, filename, key=None, secret=None):
         del line[6:]
 
     #create a Pandas DataFrame and export to CSV
-    pair_df = pd.DataFrame(bars, columns=['date', 'open', 'high', 'low', 'close', 'volume'], dtype='float64')
+    pair_df = pd.DataFrame(bars, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'], dtype='float64')
     #set data index column:
-    pair_df.index = pd.to_datetime(pair_df['date'], unit="ms")
+    pair_df.index = pd.to_datetime(pair_df['Date'], unit="ms")
+    pair_df.set_index('Date')
+
+    # pair_df.index.name = 'Date'
+
     
-    del pair_df['date']
+    # del pair_df['Date']
     
     #export to csv
     pair_df.to_csv(filename)
@@ -77,10 +81,10 @@ def get_historic_data(symbol, timestamp, interval, filename, key=None, secret=No
         del line[6:]
 
     #create a Pandas DataFrame and export to CSV
-    pair_df = pd.DataFrame(bars, columns=['date', 'open', 'high', 'low', 'close', 'volume'], dtype='float64')
+    pair_df = pd.DataFrame(bars, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'], dtype='float64')
 
-    pair_df.index = pd.to_datetime(pair_df['date'], unit="ms")
-    del pair_df['date']
+    pair_df.index = pd.to_datetime(pair_df['Date'], unit="ms")
+    del pair_df['Date']
     
     #export to csv
     pair_df.to_csv(filename)
@@ -96,7 +100,6 @@ def yf_get_stock_data(symbol, start_date, end_date):
 
     stock_data = yf.download(symbol, start=start_date, end=end_date)
 
-    #TODO check why hich caps here. fix consistency.
 
     # Prepare data for mplfinance
     #ohlc = stock_data[['Open', 'High', 'Low', 'Close', 'Volume']]
@@ -125,34 +128,6 @@ def read_data_tail(filename, tail):
     # print (ttc_df.shape)
     
     return ttc_df
-
-
-
-
-
- #btc_price = {'error':False}
-    # def btc_trade_history(msg):
-    #     ''' define how to process incoming WebSocket messages '''
-    #     if msg['e'] != 'error':
-    #         print(msg['c'])
-    #         btc_price['last'] = msg['c']
-    #         btc_price['bid'] = msg['b']
-    #         btc_price['last'] = msg['a']
-    #         btc_price['error'] = False
-    #     else:
-    #         btc_price['error'] = True
-
-    # # init and start the WebSocket
-    # bsm = ThreadedWebsocketManager()
-    # bsm.start()
-
-    # subscribe to a stream
-    #bsm.start_symbol_ticker_socket(callback=btc_trade_history, symbol=symbol)
-    # bsm.start_symbol_ticker_socket(callback=btc_trade_history, symbol='ETHUSDT')
-
-    # stop websocket
-    #bsm.stop()
-
 
 
 
