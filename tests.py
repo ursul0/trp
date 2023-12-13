@@ -1,6 +1,6 @@
 
-from data_proc import get_historic_data, get_new_data
-from capture_plot import plt_capture_onclick
+from data_proc import DataProc
+from capture_plot import CaptureOnClick
 
 from datetime import datetime, timedelta
 import os
@@ -47,9 +47,16 @@ SYMBOL = 'BTCUSDT'
 INTERVAL ='1m'
 
 
-pair_df, _, _ = get_new_data(TOTAL_CANDLES, SYMBOL,INTERVAL)
+
+
+# pair_df, _, _ = dtata_processor.get_new_data(TOTAL_CANDLES, SYMBOL,INTERVAL)
 # Load points from file and continue editing
-plotter = plt_capture_onclick(pair_df, SYMBOL, INTERVAL)
+# plotter = CaptureOnClick(pair_df, SYMBOL, INTERVAL)
+
+
+dtata_processor = DataProc()
+pair_df, _, _ = dtata_processor.get_new_data()
+plotter = CaptureOnClick(pair_df, dtata_processor)
 
 # Save points to file
 # plotter.save_m_to_file()

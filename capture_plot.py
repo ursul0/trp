@@ -7,6 +7,8 @@ import numpy as np
 import os
 from time import sleep
 
+# from threading import Timer
+
 import datetime as dt
 import matplotlib.dates as mdates
 
@@ -14,7 +16,8 @@ from matplotlib.widgets import Button, CheckButtons
 from matplotlib.widgets import TextBox, RadioButtons 
 import matplotlib.patches as patches 
 
-from data_proc import get_new_data, make_file_names
+# from data_proc import get_new_data, make_file_names
+from data_proc import DataProc
 
 # import mplcursors
 #%matplotlib inline
@@ -26,25 +29,26 @@ from data_proc import get_new_data, make_file_names
 
 #up to 2500?
 TOTAL_CANDLES_ON_THE_SCREEN = 100
-TPC = 0.02
+TPC = 0.001
 MARK_WIDTH = 1.5
 
 PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
 SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 
 
-class plt_capture_onclick:
+class CaptureOnClick:
     """ interactive plot, chart marking data collector """
-    def __init__(self, pair_df, pair='BTCUSDT', period ='1h'):
+    def __init__(self, pair_df, data_proc:DataProc= None, pair='BTCUSDT', period ='1h'):
         # fig = mpf.figure(style='yahoo',figsize=(10,6))
         self.fig = mpf.figure(style='charles',figsize=(10,6))
         self.ax  = self.fig.add_subplot()    
+        self.data_proc = data_proc
 
         # self.fig, (self.ax, self.ui_ax) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [4, 1]})
         # fig, ax = plt.subplots(figsize=(10, 6))
         self.pair = pair
         self.period = period
-        self.filename, self.m_filename = make_file_names(self.pair,self.period)
+        self.filename, self.m_filename = data_proc.make_file_names(self.pair,self.period)
         
         # pair ochl+volume data
         self.pair_df = pair_df  
@@ -67,7 +71,7 @@ class plt_capture_onclick:
         # Add textboxes below the axes
         # Adjust the position of the axes to leave space for the textboxes
         # pos :             [left, bottom, width, height] 
-        self.ax.set_position([0.03, 0.22, 0.90, 0.73])
+        self.ax.set_position([0.03, 0.22, 0.88, 0.73])
         
 
         # Add textboxes below the axes
@@ -93,12 +97,14 @@ class plt_capture_onclick:
         # ax.xaxis_date()
         # ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))  # Adjust the format as needed
 
-        mpf.plot(pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
-                
-        
         # if load_filename:
         #try to load marks
         self.load_and_plot_m_from_file()
+
+        mpf.plot(pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
+                
+        
+
 
         # Create CheckButtons widget
         # self.checkbox_ax = plt.axes([0.85, 0.01, 0.1, 0.05])  #  position and size
@@ -118,12 +124,15 @@ class plt_capture_onclick:
 
     #handle "get data" button click
     def on_get_data_button_click(self, event):
-        self.pair_df, self.filename, self.m_filename = get_new_data(100, self.pair, self.period)
-        sleep(TOTAL_CANDLES_ON_THE_SCREEN*TPC)
+        self.pair_df, self.filename, self.m_filename = self.data_proc.get_new_data(100, self.pair, self.period)
+        # sleep(TOTAL_CANDLES_ON_THE_SCREEN*TPC)
+        self.points.clear()
         self.ax.clear()
         mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
         self.load_and_plot_m_from_file()
         self.ax.set_title(f'Interactive chart of {self.pair}')
+        # self.fig.canvas.flush_events()
+        plt.pause(0.01) 
 
     def on_save_data_button_click(self, event):
         self.save_m_to_file()
@@ -189,7 +198,7 @@ class plt_capture_onclick:
                 # first_item_start_time= pd.to_datetime(first_item_start_time)
                 
         else:
-            print(f"File '{self.m_filenameame}' does not exist. No points loaded.")
+            print(f"File '{self.m_filename}' does not exist. No points loaded.")
 
     def update_dataframe(self):
         # Update DataFrame with 'buy' hot bit
