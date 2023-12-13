@@ -57,7 +57,9 @@ class CaptureOnClick:
 
         # Markings:
         self.points = []
-        
+        self.refresh = False
+
+
         self.fig.canvas.toolbar_visible = False
         self.fig.canvas.header_visible = False
         self.fig.canvas.footer_visible = True
@@ -114,9 +116,17 @@ class CaptureOnClick:
         self.show_plot()
 
     def on_tb_pair_submit(self, text): 
+        if text == self.pair:
+            self.refresh = False
+        else:
+            self.refresh = True 
         self.pair = text
     
     def on_tb_period_submit(self, text): 
+        if text == self.period:
+            self.refresh = False
+        else:
+            self.refresh = True 
         self.period = text
 
     def show_plot(self):
@@ -124,9 +134,14 @@ class CaptureOnClick:
 
     #handle "get data" button click
     def on_get_data_button_click(self, event):
+        
+        
         self.pair_df, self.filename, self.m_filename = self.data_proc.get_new_data(100, self.pair, self.period)
         # sleep(TOTAL_CANDLES_ON_THE_SCREEN*TPC)
-        self.points.clear()
+        #TODO keep relevant markings (SAME PARE/PERIOD)
+        
+        if self.refresh == True:    
+            self.points.clear()
         self.ax.clear()
         mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
         self.load_and_plot_m_from_file()
