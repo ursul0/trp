@@ -38,7 +38,7 @@ SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 
 class CaptureOnClick:
     """ interactive plot, chart marking data collector """
-    def __init__(self, pair_df, data_proc:DataProc= None, pair='BTCUSDT', period ='1h'):
+    def __init__(self, pair_df, data_proc:DataProc= None, pair='BTCUSDT', period ='1m'):
         # fig = mpf.figure(style='yahoo',figsize=(10,6))
         self.fig = mpf.figure(style='charles',figsize=(10,6))
         self.ax  = self.fig.add_subplot()    
