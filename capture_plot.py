@@ -5,62 +5,131 @@ import pandas as pd
 import numpy as np
 
 import os
-#from time import sleep
+from time import sleep
 
 import datetime as dt
 import matplotlib.dates as mdates
 
 from matplotlib.widgets import Button, CheckButtons
+from matplotlib.widgets import TextBox, RadioButtons 
 import matplotlib.patches as patches 
+
+from data_proc import get_new_data, make_file_names
+
+# import mplcursors
 #%matplotlib inline
 #   %matplotlib widget
 #%matplotlib notebook
 
+# from matplotlib.widgets import Dropdown
+# from ipywidgets import widgets
+
+#up to 2500?
+TOTAL_CANDLES_ON_THE_SCREEN = 100
+TPC = 0.02
 MARK_WIDTH = 1.5
+
+PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
+SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
+
 
 class plt_capture_onclick:
     """ interactive plot, chart marking data collector """
-    def __init__(self, pair_df, load_filename=None, pair_name='...'):
-        fig, ax = plt.subplots(figsize=(10, 6))
-        self.ax = ax
-        self.filename = load_filename
+    def __init__(self, pair_df, pair='BTCUSDT', period ='1h'):
+        # fig = mpf.figure(style='yahoo',figsize=(10,6))
+        self.fig = mpf.figure(style='charles',figsize=(10,6))
+        self.ax  = self.fig.add_subplot()    
 
-        self.captured_output = ''
-
+        # self.fig, (self.ax, self.ui_ax) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [4, 1]})
+        # fig, ax = plt.subplots(figsize=(10, 6))
+        self.pair = pair
+        self.period = period
+        self.filename, self.m_filename = make_file_names(self.pair,self.period)
+        
         # pair ochl+volume data
         self.pair_df = pair_df  
+    
+        self.captured_output = ''
 
         # Markings:
         self.points = []
         
-        fig.canvas.toolbar_visible = False
-        fig.canvas.header_visible = False
-        fig.canvas.footer_visible = True
+        self.fig.canvas.toolbar_visible = False
+        self.fig.canvas.header_visible = False
+        self.fig.canvas.footer_visible = True
         
-        ax.set_ylabel('price')
-        ax.set_xlabel('time')
-        ax.set_title("Interactive chart of "+ pair_name)
+        # self.ax.set_ylabel('price')
+        # self.ax.set_xlabel('time')
+        self.ax.set_title(f'Interactive chart of {self.pair}')
               
-        self.cid = fig.canvas.mpl_connect('button_press_event', self.add_data)
+        self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_pick)
+
+        # Add textboxes below the axes
+        # Adjust the position of the axes to leave space for the textboxes
+        # pos :             [left, bottom, width, height] 
+        self.ax.set_position([0.03, 0.22, 0.90, 0.73])
         
+
+        # Add textboxes below the axes
+        textbox_pair_pos = [0.15, 0.015, 0.12, 0.05]
+        textbox_period_pos = [0.4, 0.015, 0.05, 0.05]
+        self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', initial=self.pair)
+        self.tb_period = TextBox(plt.gcf().add_axes(textbox_period_pos), 'Period:', initial=self.period)
+        # Connect events to the textboxes
+        self.tb_pair.on_submit(self.on_tb_pair_submit)
+        self.tb_period.on_submit(self.on_tb_period_submit)
+
+        # button to get new data
+        button_pos = [0.65, 0.015, 0.1, 0.05] 
+        self.get_data_btn = Button(plt.gcf().add_axes(button_pos), 'Get Data')
+        self.get_data_btn.on_clicked(self.on_get_data_button_click)
+
+        # button to save markings
+        button_pos = [0.77, 0.015, 0.1, 0.05] 
+        self.save_data_btn = Button(plt.gcf().add_axes(button_pos), 'Save Marks')
+        self.save_data_btn.on_clicked(self.on_save_data_button_click)
+
         # ax.xaxis_date(tz=None)
         # ax.xaxis_date()
         # ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))  # Adjust the format as needed
 
-        mpf.plot(pair_df, type='candle', ax=ax, warn_too_much_data=2500)
-        # mpf.plot(pair_df, type='candle', ax=ax, warn_too_much_data=2500,mav=(7,14,50))
+        mpf.plot(pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
+                
         
-        if load_filename:
-            self.load_m_from_file()
+        # if load_filename:
+        #try to load marks
+        self.load_and_plot_m_from_file()
 
         # Create CheckButtons widget
         # self.checkbox_ax = plt.axes([0.85, 0.01, 0.1, 0.05])  #  position and size
         # self.checkbox = CheckButtons(self.checkbox_ax, labels=['MA'], actives=[False])
         # self.checkbox.on_clicked(self.on_checkbox_clicked)
 
+        self.show_plot()
+
+    def on_tb_pair_submit(self, text): 
+        self.pair = text
+    
+    def on_tb_period_submit(self, text): 
+        self.period = text
+
+    def show_plot(self):
         plt.show()
 
-    
+    #handle "get data" button click
+    def on_get_data_button_click(self, event):
+        self.pair_df, self.filename, self.m_filename = get_new_data(100, self.pair, self.period)
+        sleep(TOTAL_CANDLES_ON_THE_SCREEN*TPC)
+        self.ax.clear()
+        mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
+        self.load_and_plot_m_from_file()
+        self.ax.set_title(f'Interactive chart of {self.pair}')
+
+    def on_save_data_button_click(self, event):
+        self.save_m_to_file()
+
+
+
     def euclidean_distance(self, p1, p2):
         return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
 
@@ -75,26 +144,27 @@ class plt_capture_onclick:
 
     def draw_MA(self):
         # This is just a placeholder function, you can customize it to draw something on the chart
-        self.captured_output = "should draw ma on the chart"
-        # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500, mav=(50,21,7))
+        # self.captured_output = "should draw ma on the chart"
+        mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500, mav=(50,21,7))
 
     def remove_MA(self):
         # This is just a placeholder function, you can customize it to remove the drawing
-        self.captured_output = "should remove ma from the chart"
-        # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
-
+        # self.captured_output = "should remove ma from the chart"
+        self.ax.clear()
+        mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
 
     def save_m_to_file(self):
         # Save selected points to a CSV file
+        # self.filename
         df = pd.DataFrame(self.points, columns=['date', 'x', 'y', 'm_idx', 'ecl_w', 'ecl_h', 'buy', 'ellipse'])
-        df.to_csv(self.filename, index=False)
-        self.marked_period_start_time = self.pair_df.index[0]
+        df.to_csv(self.m_filename, index=False)
 
-    def load_m_from_file(self):
+
+    def load_and_plot_m_from_file(self):
         # Check if the file exists before loading
-        if os.path.exists(self.filename):
+        if os.path.exists(self.m_filename):
             # Load selected points from a CSV file
-            df = pd.read_csv(self.filename)
+            df = pd.read_csv(self.m_filename)
 
             # #draw markings from the saved overlay, fix locations on the timeline
             for index, row in df.iterrows():
@@ -119,7 +189,7 @@ class plt_capture_onclick:
                 # first_item_start_time= pd.to_datetime(first_item_start_time)
                 
         else:
-            print(f"File '{self.filename}' does not exist. No points loaded.")
+            print(f"File '{self.m_filenameame}' does not exist. No points loaded.")
 
     def update_dataframe(self):
         # Update DataFrame with 'buy' hot bit
@@ -132,13 +202,21 @@ class plt_capture_onclick:
             # mask = (self.pair_df['time'] >= x) & (self.pair_df['time'] <= x)  # Adjust based on your DataFrame columns     
             # self.pair_df.loc[mask, 'buy'] = buy
 
+    def on_pick(self, event):
+        # Check if the pick event occurred on the plot_ax or ui_ax
+        if event.inaxes == self.ax:
+            # print("Click event on plot axes")
+            self.add_data(event)
+            # Add your logic for handling plot axes click events here
+
+
     def add_data(self, event):
-        if event.inaxes is not None:
-            
+        # if event.inaxes is not None:
+        if event.inaxes == self.ax:
             #get data coordinates:
             x_coord = event.xdata
             y_coord = event.ydata
-            #plot coordinates : event.x, event.y
+            #figure? coordinates : event.x, event.y
 
             if x_coord is not None and y_coord is not None:
                 valid_x_range = len(self.pair_df.index)
@@ -191,7 +269,7 @@ class plt_capture_onclick:
         else:
             self.captured_output ="Clicked outside the axes"   
         
-        # print(self.captured_output)
+        print(self.captured_output)
 
 
 
