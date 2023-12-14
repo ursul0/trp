@@ -201,7 +201,9 @@ class CaptureOnClick:
                     shift = old_m_idx - new_m_candle_idx
                     x-=shift
                 except KeyError:
-                    print(f"Candle at {m_candle_time} is out of bounds.")
+                    # print(f"Candle at {m_candle_time} is out of bounds.")
+                    self.captured_output = f"Candle at {m_candle_time} is out of bounds."
+                    continue
                 else:
                     ellipse = patches.Ellipse((x, y), width=e_w, height=e_h, angle=0, color=color, fill=False)
                     self.points.append((date, x, y, new_m_candle_idx, e_w, e_h, buy, ellipse))
@@ -213,7 +215,8 @@ class CaptureOnClick:
                 # first_item_start_time= pd.to_datetime(first_item_start_time)
                 
         else:
-            print(f"File '{self.m_filename}' does not exist. No points loaded.")
+            # print(f"File '{self.m_filename}' does not exist. No points loaded.")
+            self.captured_output = f"File '{self.m_filename}' does not exist. No points loaded."
 
     def update_dataframe(self):
         # Update DataFrame with 'buy' hot bit
@@ -293,7 +296,7 @@ class CaptureOnClick:
         else:
             self.captured_output ="Clicked outside the axes"   
         
-        print(self.captured_output)
+        # print(self.captured_output)
 
 
 

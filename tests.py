@@ -42,9 +42,9 @@ import os
 # #print(pair_df)
 
 # plt_filename = path+'m'+ filename
-TOTAL_CANDLES = 100
-SYMBOL = 'BTCUSDT'
-INTERVAL ='1m'
+# TOTAL_CANDLES = 100
+# SYMBOL = 'BTCUSDT'
+# INTERVAL ='1m'
 
 
 
@@ -54,7 +54,7 @@ INTERVAL ='1m'
 # plotter = CaptureOnClick(pair_df, SYMBOL, INTERVAL)
 
 
-dtata_processor = DataProc()
+dtata_processor = DataProc('.\\.data\\ntb\\')
 pair_df, _, _ = dtata_processor.get_new_data()
 plotter = CaptureOnClick(pair_df, dtata_processor)
 

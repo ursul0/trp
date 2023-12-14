@@ -12,6 +12,12 @@ import pandas as pd #for data structure
 #get API keys
 from scr import bnc_key, bnc_sec
 
+#new data defaults
+# PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
+TOTAL_CANDLES = 100
+SYMBOL = 'BTCUSDT'
+INTERVAL ='1m'
+
 class DataProc:
     """  data collector/processor """
     def __init__(self, path = '.\\.data\\', pair = 'BTCUSDT', interval = '1h', candles = 100):
@@ -161,7 +167,7 @@ class DataProc:
         return filename, m_filename
 
 
-    def get_new_data(self, candles = 100, pair = 'BTCUSDT', interval='1h'):
+    def get_new_data(self, candles = TOTAL_CANDLES, pair = SYMBOL, interval=INTERVAL):
 
         self.pair = pair
         self.interval = interval
@@ -218,8 +224,6 @@ class DataProc:
 
         return timestamp_formatted
 
-
-# PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
 
 
 
