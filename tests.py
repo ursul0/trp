@@ -1,9 +1,9 @@
 
-from data_proc import DataProc
+# from data_proc import DataProc
 from capture_plot import CaptureOnClick
 
-from datetime import datetime, timedelta
-import os
+# from datetime import datetime, timedelta
+# import os
 
 # REFRESH_INPUT_DATA = 1
 # # =====================================
@@ -19,7 +19,7 @@ import os
 # current_date_0h = current_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
 
 # #get 3 days back from today
-# MAX_DAYS_TO_GET_BACK = 1
+# MAX_DAYS_TO_GET_BACK = 3
 # current_date_0h -= timedelta(days=MAX_DAYS_TO_GET_BACK)
 
 # # getting the timestamp for binance format
@@ -54,12 +54,13 @@ import os
 # plotter = CaptureOnClick(pair_df, SYMBOL, INTERVAL)
 
 
-dtata_processor = DataProc('.\\.data\\ntb\\')
-pair_df, _, _ = dtata_processor.get_new_data()
-plotter = CaptureOnClick(pair_df, dtata_processor)
+# dtata_processor = DataProc('.\\.data\\ntb\\')
+
+plotter = CaptureOnClick()
+
 
 # Save points to file
-# plotter.save_m_to_file()
+plotter.save_m_to_file()
 
 
 print("Done!")
