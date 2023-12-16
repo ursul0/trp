@@ -37,7 +37,7 @@ from data_proc import DataProc
 
 #up to 2500?
 TOTAL_CANDLES_ON_THE_SCREEN = 100
-TPC = 10
+TPC = 100
 MARK_WIDTH = 1.5
 
 PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
@@ -46,13 +46,14 @@ SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 DEBUG_PRINT = 1
 
 
+
 class CaptureOnClick:
     """ interactive plot, chart marking data collector """
-    def __init__(self, pair_df=None, pair='BTCUSDT', period='1m'):
+    def __init__(self, pair_df=None, data_proc:DataProc = None, pair='BTCUSDT', period='1m'):
         # fig = mpf.figure(style='yahoo',figsize=(10,6))
         self.fig = mpf.figure(style='charles',figsize=(10,6))
         self.ax  = self.fig.add_subplot()    
-        self.data_proc = DataProc(pair=pair_df, candles=TOTAL_CANDLES_ON_THE_SCREEN, interval=period)
+        self.data_proc = data_proc
 
         # self.fig, (self.ax, self.ui_ax) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [4, 1]})
         # fig, ax = plt.subplots(figsize=(10, 6))
@@ -67,6 +68,7 @@ class CaptureOnClick:
         #debug print
         self.captured_output = ''
         
+        # self.RefreshThread = None
         self.RefreshThread = INTupdateThread(plotter = self)
        
         # Markings:
@@ -144,8 +146,7 @@ class CaptureOnClick:
     #update plot, also from refresher task: INTupdateThread
     def update_plot(self, live = False):
         
-        # cur_dta = None
-        # cur_sngl_row = None
+        # cur_sngl_row = pd.DataFrame()
         # sleep(TPC)
 
         if hasattr(self, 'ax'):
@@ -154,106 +155,19 @@ class CaptureOnClick:
 
             #parse flags 
             if self.data_refresh_flag == True:  
-                # self.clear_all_marks()
+                self.marks.clear()
                 self.ax.clear()
-                
-                self.pair_df, self.filename, self.m_filename = \
-                cur_dta, _, _ = self.data_proc.get_new_data(TOTAL_CANDLES_ON_THE_SCREEN, self.pair, self.period)
+                self.pair_df, self.m_filename  = \
+                self.data_proc.get_new_data(self.pair, self.period)
 
                 self.ax.set_title(f'Interactive chart of {self.pair}')
-                # sleep(TPC)
                 #add marks to pthe lot
+                        
                 self.load_and_plot_m_from_file()
+                self.data_refresh_flag = False
+                self.marks_resync_flag = False
 
  
-            if live == True:
-                if self.pair_df == None:
-                    self.data_refresh_flag = True ##should never get here
-                
-
-
-
-                df = self.pair_df 
-                #get one candle, no file writes
-                # cur_dta = pd.DataFrame()
-        
-                # #reduce recent window:
-                # ttc_df = pair_df[-tail:]
-                # print (ttc_df.shape)
-                
-                if cur_sngl_row == None:
-                    cur_sngl_row, _, _ = self.data_proc.get_new_data(1, self.pair, self.period, False)
-
-                # cur_dta.index = pd.to_datetime(cur_dta.index)
-                # cur_dta = pd.DataFrame(cur_dta, index="Date")
-                
-                old_dta = df.iloc[-1]
-                cur_dta = cur_sngl_row.iloc[-1]
-
-                #cur_dta = pd.DataFrame({'value': [1, 2, 3]}
-
-                self.captured_output = f'old_dta: {old_dta.shape} cur_dta: {cur_dta.shape}'
-                  
-                if DEBUG_PRINT == 1:
-                    print(self.captured_output)
-                
-
-
-                # #get datetime from the arrived candle
-                # t1 = cur_dta.Index
-                # t2 = old_dta.Index
-
-                # cur_datetime = pd.to_datetime(t1)
-                # old_datetime = pd.to_datetime(t2)
-
-                cur_datetime = cur_dta['Date']
-                old_datetime = old_dta['Date']
-
-# cur_datetime = pd.to_datetime(t1)
-                # old_datetime = pd.to_datetime(t2)
-
-                #get id by datetime (our index)
-                # idx_in_nd = round(df.index.get_loc(cur_datetime))
-
-                if cur_datetime == old_datetime:
-                    self.captured_output = f'cur_datetime: {cur_datetime} old_datetime: {old_datetime}'
-                    #updating df with teh new LH data
-                    df.loc[old_datetime, 'Low'] = cur_dta['Low'].iloc[0]
-                    df.loc[old_datetime, 'High'] = cur_dta['High'].iloc[0]
-
-
-                #poll until getting different timestamp for the candle    
-                else:
-                    # New datetime arrived
-                    # Concatenate cur_dta to self.pair_df, ignore_index=True
-                    df = pd.concat([df, cur_dta], ignore_index=True)
-
-                    # Drop the first row in self.pair_df
-                    self.pair_df = df.iloc[1:]
-
-                    self.marks_resync_flag = True
-           
-    
-            if self.marks_resync_flag == True:
-                self.ax.clear()
-                if len(self.marks):
-                    self.sync_marks_on_pair()
-                else:
-                    if DEBUG_PRINT == 1:
-                        print('Mo marks file: {self.m_filename} found')
-   
-                
-        # sleep(TPC)
-        
-            
-        # if cur_dta != None:
-        #     self.pair_df = cur_dta
-        #     self.run_refresh_flag = False
-        # else:
-        #     self.pair_df = df
-
-
-
         mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)         
         plt.pause(TPC/100)
         self.fig.canvas.flush_events()
@@ -262,8 +176,8 @@ class CaptureOnClick:
 
 
         #reset flags after plot update
-        self.data_refresh_flag = False
-        self.marks_resync_flag = False
+
+        
 
     def add_plot_mark(self, event):
         # if event.inaxes is not None:
@@ -274,7 +188,7 @@ class CaptureOnClick:
             #figure? coordinates : event.x, event.y
 
             if x_coord is not None and y_coord is not None:
-                valid_x_range = len(self.pair_df.index)
+                valid_x_range = self.pair_df.shape[0]
       
                 if 0<= x_coord < valid_x_range:
 
@@ -338,7 +252,7 @@ class CaptureOnClick:
                 print("Click event on plot axes")
             self.add_plot_mark(event)
             #set flags 
-            self.run_refresh_flag
+            # self.run_refresh_flag
             self.update_plot()
     
     def on_tb_pair_submit(self, text): 
@@ -379,18 +293,6 @@ class CaptureOnClick:
                 self.RefreshThread.stop()   
         self.update_plot()
 
-    # def on_clear_marks_button_click(self, event):
-    #     self.clear_all_marks(event)
-    #     self.update_plot()
-
-    # def clear_all_marks(self, event=None):
-    #     for mark in self.marks:
-    #         ellipse_to_remove = mark[8]
-    #         # _, _, _, _, _, _, _, ellipse_to_remove = mark[8]
-    #         ellipse_to_remove.remove()
-
-    #     self.update_plot()
-    
     def resync_marks(self):
         self.marks_resync_flag = True
         self.update_plot()
@@ -533,7 +435,7 @@ class CaptureOnClick:
 def _int_update_thread_function(plotter:CaptureOnClick):
     while plotter.run_refresh_flag == True:
            plotter.update_plot(live=True)
-           sleep(TPC*50)
+           sleep(TPC*5)
 
 #thread for Plot auto refresh/update_plot calls
 class INTupdateThread(Thread):

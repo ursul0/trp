@@ -1,5 +1,5 @@
 
-# from data_proc import DataProc
+from data_proc import DataProc
 from capture_plot import CaptureOnClick
 
 # from datetime import datetime, timedelta
@@ -53,14 +53,16 @@ from capture_plot import CaptureOnClick
 # Load points from file and continue editing
 # plotter = CaptureOnClick(pair_df, SYMBOL, INTERVAL)
 
+# DataProc(pair=pair_df, candles=TOTAL_CANDLES_ON_THE_SCREEN, interval=period)
 
-# dtata_processor = DataProc('.\\.data\\ntb\\')
+# data_processor = DataProc('.\\.data\\ntb\\')
+data_processor = DataProc()
 
-plotter = CaptureOnClick()
+plotter = CaptureOnClick(data_proc = data_processor)
 
 
 # Save points to file
-plotter.save_m_to_file()
+# plotter.save_m_to_file()
 
 
 print("Done!")
