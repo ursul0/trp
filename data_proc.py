@@ -15,7 +15,7 @@ import threading
 #get API keys
 from scr import bnc_key, bnc_sec
 
-DEBUG_PRINT = 1
+DEBUG_PRINT = 0
 
 # data defaults
 SYMBOLS = ['BTCUSDT', 'ETHUSDT']
@@ -208,38 +208,41 @@ class DataProc:
             self.pair_df_store[pair][interval] = pair_df
             self.data_map[pair][interval]['StartDate'] = self.pair_df_store[pair][interval].index[0]
             self.data_map[pair][interval]['EndDate'] = self.pair_df_store[pair][interval].index[-1]
-            self.data_map[pair][interval]['Updated'] = pd.Timestamp.now()
+            cur_time = pd.Timestamp.now()
+            upd_time = cur_time
+            self.data_map[pair][interval]['Updated'] = upd_time
         #more then 1 is needed
-        # elif  (round(upd_time - cur_time > candle_t)>1):
+        elif  (round(upd_time - cur_time > candle_t)>1):
             
-        #     target_start_time,_ = self.calculate_data_span(1, interval)
-        #     #update x last candles
-        #     pair_df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
+            target_start_time,_ = self.calculate_data_span(1, interval)
+            #update x last candles
+            pair_df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
   
 
-        #     # self.pair_df_store[pair][interval] = pair_df
-        #     self.data_map[pair][interval]['EndDate'] = self.pair_df_store[pair][interval].index[-1]
-        #     self.data_map[pair][interval]['Updated'] = pd.Timestamp.now()
-
-        #     # pair_df.at[index_to_replace, 'Value'] = new_value
-
-        #     self.pair_df_store[pair][interval] = pd.concat([self.pair_df_store[pair][interval], pair_df])
-
-        #within single candle 
-        elif live == True:
-            target_start_time,_ = self.calculate_data_span(1, interval)
-            df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
-
-            #replace last candle data            
-            self.pair_df_store[pair][interval].iloc[-1] = df
-            # tt = df.iloc[-1].index
+            # self.pair_df_store[pair][interval] = pair_df
+            self.data_map[pair][interval]['EndDate'] = self.pair_df_store[pair][interval].index[-1]
             self.data_map[pair][interval]['Updated'] = pd.Timestamp.now()
 
-            # df.at[tt, 'Value'] = new_value
+            # pair_df.at[index_to_replace, 'Value'] = new_value
 
-            if DEBUG_PRINT == 1:
-                last_date = self.pair_df_store[pair][interval].index[-1]
-                print(f'We have got new candle data {last_date}')
+            self.pair_df_store[pair][interval] = pd.concat([self.pair_df_store[pair][interval], pair_df])
+
+        #within single candle 
+        # elif live == True:
+        #     target_start_time,_ = self.calculate_data_span(1, interval)
+        #     df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
+
+        #     #replace last candle data            
+        #     self.pair_df_store[pair][interval].iloc[-1] = df
+        #     # tt = df.iloc[-1].index
+        #     self.data_map[pair][interval]['Updated'] = pd.Timestamp.now()
+
+        #     # df.at[tt, 'Value'] = new_value
+        #     # new_m_candle_idx = self.pair_df.index.get_loc(m_candle_time)
+
+        #     if DEBUG_PRINT == 1:
+        #         last_date = self.pair_df_store[pair][interval].index[-1]
+        #         print(f'We have got new candle data {last_date}')
         # else:
         #     last_date = self.pair_df_store[pair][interval].index[-1]
         #     if DEBUG_PRINT == 1:

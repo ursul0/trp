@@ -43,7 +43,7 @@ MARK_WIDTH = 1.5
 PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
 SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 
-DEBUG_PRINT = 1
+DEBUG_PRINT = 0
 
 
 
@@ -166,11 +166,16 @@ class CaptureOnClick:
                 self.load_and_plot_m_from_file()
                 self.data_refresh_flag = False
                 self.marks_resync_flag = False
+                # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
 
- 
+            if self.run_refresh_flag == True: 
+                self.pair_df, _  = \
+                self.data_proc.get_new_data(self.pair, self.period, live = True)
+                # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
+
         mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)         
-        plt.pause(TPC/100)
-        self.fig.canvas.flush_events()
+        plt.pause(TPC)
+        # self.fig.canvas.flush_events()
         plt.show()
 
 
