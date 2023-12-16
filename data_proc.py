@@ -15,7 +15,7 @@ import threading
 #get API keys
 from scr import bnc_key, bnc_sec
 
-DEBUG_PRINT = 0
+DEBUG_PRINT = 1
 
 # data defaults
 SYMBOLS = ['BTCUSDT', 'ETHUSDT']
@@ -32,10 +32,11 @@ INTERVALS = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h'
 TOTAL_CANDLES = 100
 SYMBOL = 'BTCUSDT'
 INTERVAL ='1m'
+DATA_REFRESH_RATE = 3 #data refresh in seconds
 
 class DataProc:
     """  data collector/processor """
-    def __init__(self, path = '.\\.data\\', pair = SYMBOL, interval = {INTERVAL}, candles = TOTAL_CANDLES):
+    def __init__(self, path = '.\\.data\\', pair = SYMBOL, interval = 'INTERVAL', candles = TOTAL_CANDLES):
         self.bnc_key, self.bnc_sec = self._get_creds()
         self.client = Client(self.bnc_key, self.bnc_sec)
 
@@ -47,12 +48,11 @@ class DataProc:
         self.interval = interval
         self.candles= candles
         
+        #files
         self.savedata = True
-        self.filename = None
-        self.m_filename = None
-
+        self.filename, self.m_filename = self._make_file_names()
        
-
+        #data structures
         self.pair_df = None
         self.pair_df_store = self.create_data_store()
         self.data_map = self.initialize_data_map()
@@ -62,10 +62,9 @@ class DataProc:
         self.interval = interval
         self.candles= candles
         current_datetime = datetime.today()
-        self.filename, self.m_filename = self.make_file_names(self, pair, current_datetime)
+        self.filename, self.m_filename = self._make_file_names(self, pair, current_datetime)
         return self.filename, self.m_filename
     
-
     def create_data_store(self):
         data_store = {}
         for pairs in SYMBOLS: 
@@ -86,24 +85,22 @@ class DataProc:
         return data_structure
 
     def save_data_store(self):
-        pd.DataFrame(self.pair_df_store).to_csv((self.filename+'z'))
+        pd.DataFrame(self.pair_df_store).to_csv((self.filename+'.datastore'))
 
-
-        
 
     def populate_intervals_with_data_slice(self, pair, interval, candles):
-        # Populate pair_df with data for the specified interval
-        for interval in self.pair_df_bInt:
+        # Populate pair_df with TOTAL_CANDLES of data for all intervals
+        for interval in self.pair_df_store[pair]:
             print(f'getting {interval} interval')
             interval = self.get_new_data(pair=pair, interval=interval, candles=candles)
         else:
-            print(f"Invalid interval: {interval}. Please choose from: {', '.join(self.intervals)}")
+            print(f"Invalid interval: {interval}. Please choose from: {', '.join(INTERVALS)}")
 
     def _get_creds(self):
         #pass API keys
         return bnc_key, bnc_sec
  
-    def get_historic_data2(self, symbol, timestamp, interval, savefile=True):
+    def get_historic_data_old(self, symbol, timestamp, interval, savefile=True):
 
         t_old= self.data_map[symbol][interval]['Updated'] 
         t_cur =pd.Timestamp.now() 
@@ -179,16 +176,67 @@ class DataProc:
                         
         return pair_df
 
+    def get_new_data(self,  pair = SYMBOL, interval=INTERVAL, savedata = True):
 
-    def get_new_data(self,  pair = SYMBOL, interval=INTERVAL, savefile = True, live = False):
+        upd_time = self.data_map[pair][interval]['Updated']
+        #screen size of data
+        if upd_time == None: #fresh data needed on init
+
+            target_start_time,_ = self.calculate_data_span(TOTAL_CANDLES, interval)
+            pair_df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
+            # self.filename, self.m_filename = self.set_data_details(pair, interval, candles)
+            
+            #TODO consiger removing file operation from here!
+            if savedata == True:
+                pair_df.to_csv(self.filename)
+            
+            self.pair_df_store[pair][interval] = pair_df
+            self.data_map[pair][interval]['StartDate'] = self.pair_df_store[pair][interval].index[0]
+            self.data_map[pair][interval]['EndDate'] = self.pair_df_store[pair][interval].index[-1]
+            cur_time = pd.Timestamp.now()
+            upd_time = cur_time
+            self.data_map[pair][interval]['Updated'] = upd_time
+            #if 1 is needed - processed sepparately
+
+        return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], self.m_filename
+
+    def _append_data(self,  pair = SYMBOL, interval=INTERVAL, savedata = True):
+        # candles = TOTAL_CANDLES
+        cur_time = pd.Timestamp.now()
+        upd_time = self.data_map[pair][interval]['Updated']
+        candle_t,_ = self.calculate_data_span(1, interval)
+        candle_t=candle_t-pd.Timestamp.now()
+
+        if (upd_time - cur_time).total_seconds()/candle_t.total_seconds() > DATA_REFRESH_RATE:
+    
+            target_start_time,_ = self.calculate_data_span(1, interval)
+            tgt_timestamp = pd.Timestamp(target_start_time)
+            # tgt_timestamp = pd.to_timedelta(target_start_time)
+            #update x last candles
+
+            pair_df = self.get_historic_data(symbol=pair, timestamp=tgt_timestamp, interval=interval)
+
+            # self.pair_df_store[pair][interval] = pair_df
+            self.data_map[pair][interval]['EndDate'] = self.pair_df_store[pair][interval].index[-1]
+            self.data_map[pair][interval]['Updated'] = pd.Timestamp.now()
+
+            # pair_df.at[index_to_replace, 'Value'] = new_value
+
+            self.pair_df_store[pair][interval] = pd.concat([self.pair_df_store[pair][interval], pair_df])
+            #maybe cleanup df.drop_duplicates()
+        return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:]
+
+
+
+
+
+
+
+
+
+
+    def get_new_data_old(self,  pair = SYMBOL, interval=INTERVAL, savedata = True, live = False):
         
-         #TODO: review below and reduce the crap
-        # current_datetime = datetime.today()
-        # self.filename, self.m_filename = self.make_file_names(pair, interval, current_datetime)
-
-        # target_start_time= datetime.fromisoformat(self.calculate_data_span(candles, interval))
-        # t_start= int(datetime.timestamp(target_start_time)*1000)
-
         candles = TOTAL_CANDLES
         cur_time = pd.Timestamp.now()
         upd_time = self.data_map[pair][interval]['Updated']
@@ -196,13 +244,14 @@ class DataProc:
         candle_t=candle_t-pd.Timestamp.now()
      
         #screen size of data
-        if upd_time == None: #fresh data needed
+        if upd_time == None: #fresh data needed on init
             target_start_time,_ = self.calculate_data_span(candles, interval)
-            pair_df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
+            tgt_timestamp = pd.Timestamp(target_start_time)
+            pair_df = self.get_historic_data(symbol=pair, timestamp=tgt_timestamp, interval=interval)
+            # self.filename, self.m_filename = self.set_data_details(pair, interval, candles)
             
-            if savefile == True:
-                current_datetime = datetime.today()
-                self.filename, self.m_filename = self.make_file_names(pair, interval, current_datetime)
+            #TODO consiger removing file operation from here!
+            if savedata == True:
                 pair_df.to_csv(self.filename)
             
             self.pair_df_store[pair][interval] = pair_df
@@ -212,11 +261,13 @@ class DataProc:
             upd_time = cur_time
             self.data_map[pair][interval]['Updated'] = upd_time
         #more then 1 is needed
-        elif  (round(upd_time - cur_time > candle_t)>1):
+        elif (upd_time - cur_time).total_seconds()/candle_t.total_seconds() > REFDATA_REFRESH_RATE:
             
             target_start_time,_ = self.calculate_data_span(1, interval)
+            tgt_timestamp = pd.Timestamp(target_start_time)
+            # tgt_timestamp = pd.to_timedelta(target_start_time)
             #update x last candles
-            pair_df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
+            pair_df = self.get_historic_data(symbol=pair, timestamp=tgt_timestamp, interval=interval)
   
 
             # self.pair_df_store[pair][interval] = pair_df
@@ -226,6 +277,7 @@ class DataProc:
             # pair_df.at[index_to_replace, 'Value'] = new_value
 
             self.pair_df_store[pair][interval] = pd.concat([self.pair_df_store[pair][interval], pair_df])
+            #maybe cleanup df.drop_duplicates()
 
         #within single candle 
         # elif live == True:
@@ -249,11 +301,12 @@ class DataProc:
         #         print(f'We have got local cache hit on {last_date}')
      
         #return only the requested number of candles
+            
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], self.m_filename
 
 
 
-
+#not OK?
     def get_all_historic_data(self, symbol, interval, filename):
 
         ##SHOIULD NOT BE WORKING AS IT IS
@@ -343,39 +396,28 @@ class DataProc:
         self.csv_data_tail = ttc_df
         return ttc_df
 
-    def make_file_names(self, pair, interval, date=None):
+    def _make_file_names(self, path=None, pair=None, interval=None, date=None):
         if date == None:
             current_datetime = datetime.today()
             current_date = current_datetime.date()  # Extract date from datetime
             # current_date_0h = current_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         else:
             current_date = date
+ 
+        #if not provided as parameters, take presets from the class
+        path = path if path is not None else self.path
+        pair = pair if pair is not None else self.pair
+        interval = interval if interval is not None else self.interval
+   
+        current_date = current_date.strftime('-%Y-%m-%d')
 
-        path = self.path
-
-        tc= '-'
-        file = pair+tc+interval+current_date.strftime('-%Y-%m-%d')+'.csv'
+        file = pair+'-'+interval+current_date+'.csv'
         m_file = 'm'+file
+
         filename = path+file
         m_filename = path+m_file
 
         return filename, m_filename
-
-        self.dataframes_tuple = self.create_dataframes_tuple()
-
-    def check_and_get_last_date(self):
-        
-        for interval, df in self.pair_df_bInt.items():
-            if not df.empty:  # Check if the DataFrame is not empty
-                t_date = df.iloc[-1]['Date']  # Get 'Date' from the last row
-
-                if DEBUG_PRINT == 1:
-                    print(f'We have got local cache hit for interval {interval}! {t_date}')
-
-                return t_date, interval, df  # Return the 'Date' value if found
-
-        return None 
-
 
     def calculate_data_span(self, candle_count, period):
     # Map period to timedelta
