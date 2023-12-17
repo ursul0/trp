@@ -4,7 +4,7 @@ from capture_plot import CaptureOnClick
 import pandas as pd
 # from datetime import datetime, timedelta
 # import os
-
+SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 TOTAL_CANDLES = 100
 SYMBOL = 'BTCUSDT'
 INTERVAL ='1m'

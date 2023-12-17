@@ -16,9 +16,9 @@ import threading
 from scr import bnc_key, bnc_sec
 
 DEBUG_PRINT = 0
-
+SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 # data defaults
-SYMBOLS = ['BTCUSDT', 'ETHUSDT']
+
 INTERVALS = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
 # PAIR_DATA = pd.DataFrame(columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
 
@@ -28,7 +28,7 @@ INTERVALS_ON_APPEND = 3
 TOTAL_CANDLES = 100
 SYMBOL = 'BTCUSDT'
 DEF_INTERVAL ='1m'
-DATA_REFRESH_RATE = 3 #data refresh in seconds
+DATA_REFRESH_RATE = 1 #data refresh in candles (one means we poll the candle historical data)
 
 class DataProc:
     """  data collector/processor """

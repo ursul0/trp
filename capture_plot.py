@@ -24,13 +24,13 @@ from data_proc import DataProc
 
 
 #up to 2500?
-TOTAL_CANDLES_ON_THE_SCREEN = 100
+TOTAL_CANDLES = 100
 TPC = 100
 MARK_WIDTH = 1.5
-
+# SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', \
               '12h', '1d', '3d', '1w', '1M']
-SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
+
 
 DEBUG_PRINT = 11
 
@@ -125,13 +125,13 @@ class CaptureOnClick:
         self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
         self.checkbox.on_clicked(self.on_checkbox_clicked)
 
-        self.get_plot_data()
-        self.draw_plot()
+        self._get_plot_data()
+        self._draw_plot()
         
      
         plt.show()
 
-    def get_plot_data(self):   
+    def _get_plot_data(self):   
         pair_df, pair, interval = self.dp.get_new_data(self.pair, self.interval, False)
         self.f_new_plot_data = True
         # sleep(0.01)
@@ -143,7 +143,7 @@ class CaptureOnClick:
 
         return pd.to_datetime(self.pair_df.index[-1]) #same as .tail(1)
     
-    def refresh_plot_data(self):   
+    def _refresh_plot_data(self):   
         pair_df, pair, interval = self.dp.append_data(self.pair, self.interval)
         if not self.pair_df.empty:
             self.pair = pair
@@ -233,7 +233,7 @@ class CaptureOnClick:
                 self.f_new_plot_data== False
                            
 
-    def draw_plot(self):
+    def _draw_plot(self):
         
         # if self.f_new_plot_data != True: 
             mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
@@ -244,14 +244,26 @@ class CaptureOnClick:
         # else:
         #     print("WTF?")
             
-    def redraw_plot(self):
-        if self.pair_df is not None:
+    def _redraw_plot(self):
+        #only the last candle is here
+        #not empty(why would it be?) and has last candle only
+        if self.pair_df.shape[0] == TOTAL_CANDLES:
             self.ax.clear()
-            #add marks to the plot
             mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
             self.load_and_plot_m_from_file()
             self.ax.set_title(f'Interactive chart of {self.pair}')
-            self.ax.figure.canvas.draw()
+        elif self.pair_df.shape[0] == 1:
+            #update last v-line/candle on a plot
+            # line.set_xdata([updated_position])
+            print('update last line on a plot!!!')
+        else:
+            print('_redraw_plot: WTF?')
+            #draw new data, including new interval
+            #
+
+
+
+        self.ax.figure.canvas.draw()
 
 
     #OK
@@ -326,16 +338,20 @@ class CaptureOnClick:
             self.captured_output = f"{self.pair} reconfirmed. | "
             if DEBUG_PRINT == 1:
                 print(self.captured_output)
-                self.refresh_plot_data()
+                self._refresh_plot_data()
+                self._redraw_marks()
+                self._redraw_plot()
                 # self.f_new_plot_data= True
         else:
             self.pair = text
             self.captured_output = f"Getting {self.pair} {self.interval} data... | "
-            self.get_plot_data()
+            self._get_plot_data()
+            self._redraw_plot()
+            self._redraw_marks()
 
             if DEBUG_PRINT == 1:
                 print(self.captured_output )
-            td_idx_last = self.refresh_plot_data()
+            td_idx_last = self._refresh_plot_data()
             last_dta_time = pd.to_datetime(td_idx_last)
             self.captured_output = f"Loaded up to: {last_dta_time} | "
             if DEBUG_PRINT == 1:
@@ -346,14 +362,20 @@ class CaptureOnClick:
              self.captured_output = f"{self.interval} reconfirmed. | "
              if DEBUG_PRINT == 1:
                 print(self.captured_output)
-                self.refresh_plot_data()
+                self._refresh_plot_data()
+                self._redraw_marks()
+                self._redraw_plot()
                 # self.f_new_plot_data= True
         else:
             self.interval = text
             self.captured_output += f"Getting {self.pair} {self.interval} data... | "
             if DEBUG_PRINT == 11:
                     print(self.captured_output)
-            td_idx_last = self.refresh_plot_data()
+            td_idx_last = self._refresh_plot_data()
+            self._redraw_plot()
+            #TODO mayby get from file?
+            self._redraw_marks()
+            self._redraw_plot()
             last_dta_time = pd.to_datetime(td_idx_last)
             self.captured_output = f"Loaded up to: {last_dta_time} | "
             if DEBUG_PRINT == 1:
@@ -361,10 +383,10 @@ class CaptureOnClick:
  
     def on_get_data_button_click(self, event):
 
-            nd = self.refresh_plot_data()
-            # sleep(0.01)
-            self.redraw_plot()
-            ndt = pd.to_datetime(self.get_plot_data())
+            nd = self._refresh_plot_data()
+            self._redraw_marks()
+            self._redraw_plot()
+            ndt = pd.to_datetime(self._get_plot_data())
             self.captured_output = f'New data up to: {ndt} | '  
 
             if DEBUG_PRINT == 1:
