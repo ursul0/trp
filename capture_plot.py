@@ -43,43 +43,46 @@ TOTAL_CANDLES_ON_THE_SCREEN = 100
 TPC = 100
 MARK_WIDTH = 1.5
 
-PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
+PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', \
+              '12h', '1d', '3d', '1w', '1M']
 SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 
-DEBUG_PRINT = 1
+DEBUG_PRINT = 0
 
 
 
 class CaptureOnClick:
     """ interactive plot, chart marking data collector """
-    def __init__(self, path = '.\\.data\\', pair_df=None, data_proc:DataProc = None, symbol='BTCUSDT', interval='1m'):
+    def __init__(self, path = '.\\.data\\', pair_df=None, data_proc:DataProc = None, \
+                 symbol='BTCUSDT', interval='1m'):
         # self.fig = mpf.figure(style='yahoo',figsize=(10,6))
         self.fig = mpf.figure(style='charles',figsize=(10,6))
         self.ax  = self.fig.add_subplot()   
-        # self.fig, (self.ax, self.ui_ax) = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [4, 1]})
+        # self.fig, (self.ax, self.ui_ax) = plt.subplots(2, 1, figsize=(10, 8),\
+        #  gridspec_kw={'height_ratios': [4, 1]})
         # fig, ax = plt.subplots(figsize=(10, 6))
      
         self.path = path
-        self.symbol = symbol
+        self.pair = symbol
         self.interval = interval
 
         #initialize data processor
-        if data_proc == None:
-            self.data_proc = DataProc(self.path)
-            
+        if data_proc is None:
+            "Provide DataProc object for data processing."
         else:
             self.data_proc = data_proc
 
-        if pair_df == None:
-            self.pair_df, self.m_filename = self.data_proc.get_new_data(self.symbol, self.interval,True)
-            # pair ochl+volume data
+        if pair_df is None:
+            self.pair_df, self.m_file = self.data_proc.get_new_data(self.pair, self.interval,True)
+        else:     
+           self.pair_df = pair_df
         
-        self.filename, _ = self.data_proc._make_file_names(self.path, self.symbol, self.interval)
+        self.filename, _ = self.data_proc._make_file_names()
         
         #debug print
         self.captured_output = ''
         
-        self.RefreshThread = INTupdateThread(plotter = self)
+        # self.RefreshThread = INTupdateThread(plotter = self)
 
         # Markings:
         self.marks = []
@@ -89,7 +92,7 @@ class CaptureOnClick:
                
         # self.ax.set_ylabel('price')
         # self.ax.set_xlabel('time')
-        self.ax.set_title(f'Interactive chart of {self.symbol}')
+        self.ax.set_title(f'Interactive chart of {self.pair}')
               
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_pick)
         # def disconnect_callback(self):
@@ -105,8 +108,10 @@ class CaptureOnClick:
         # Add textboxes below the axes
         textbox_pair_pos = [0.15, 0.015, 0.12, 0.05]
         textbox_period_pos = [0.4, 0.015, 0.05, 0.05]
-        self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', initial=self.symbol)
-        self.tb_period = TextBox(plt.gcf().add_axes(textbox_period_pos), 'Period:', initial=self.interval)
+        self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', \
+                               initial=self.pair)
+        self.tb_period = TextBox(plt.gcf().add_axes(textbox_period_pos), 'Period:', \
+                                 initial=self.interval)
         # Connect events to the textboxes
         self.tb_pair.on_submit(self.on_tb_pair_submit)
         self.tb_period.on_submit(self.on_tb_period_submit)
@@ -120,22 +125,11 @@ class CaptureOnClick:
         button_pos = [0.77, 0.015, 0.1, 0.05] 
         self.save_data_btn = Button(plt.gcf().add_axes(button_pos), 'Save Marks')
         self.save_data_btn.on_clicked(self.on_save_data_button_click)
-
-        # button to remove all markings
-        # pos :    [left, bottom, width, height] 
-        # button_pos = [0.54, 0.015, 0.1, 0.05] 
-        # self.get_data_btn = Button(plt.gcf().add_axes(button_pos), 'Clear MArks')
-        # self.get_data_btn.on_clicked(self.on_clear_marks_button_click)
-
-        # ax.xaxis_date(tz=None)
-        # ax.xaxis_date()
-        # ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))  
-        # Adjust the format as needed
-     
+ 
         # Create CheckButtons widget
-        self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
-        self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
-        self.checkbox.on_clicked(self.on_checkbox_clicked)
+        # self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
+        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
+        # self.checkbox.on_clicked(self.on_checkbox_clicked)
 
 
         self.update_plot()
@@ -143,7 +137,7 @@ class CaptureOnClick:
         plt.show()
 
     def refresh_plot_data(self):   
-        self.pair_df = self.data_proc._append_data(self.symbol, self.interval)
+        self.pair_df, self.pair, self.interval = self.data_proc._append_data()
         return pd.to_datetime(self.pair_df.index[-1]) #same as .tail(1)
         # sleep(TPC)
         
@@ -190,12 +184,13 @@ class CaptureOnClick:
             # self._add_marks2plot()
             # plt.pause(TPC/100)
             self.ax.figure.canvas.draw()
+            # plt.show()
 
         #reset flags after plot update
 
     def redraw_plot(self):
         self.ax.clear()
-        self.ax.set_title(f'Interactive chart of {self.symbol}')
+        self.ax.set_title(f'Interactive chart of {self.pair}')
         #add marks to the plot
         mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
         self.load_and_plot_m_from_file()
@@ -233,8 +228,8 @@ class CaptureOnClick:
                         #capture the user input
                         self.captured_output = f"Data coords: ({x_coord}, {y_coord})"            
                         date_clicked = self.pair_df.index[round(x_coord)] 
-                        self.captured_output += f' date clicked: {date_clicked} '
-                        self.captured_output += f' figure coords: ({event.x}, {event.y})'
+                        # self.captured_output += f' date clicked: {date_clicked} '
+                        # self.captured_output += f' figure coords: ({event.x}, {event.y})'
                         
                         #get current location, TODO some old func, review
                         #add marks to self.marks & plot on axes
@@ -267,38 +262,43 @@ class CaptureOnClick:
             self.add_rmv_plot_mark(event)
 
         else:
-            self.captured_output += f'Figure clicked at: ({event.x},{event.y})'
+            self.captured_output += f'Figure clicked at: ({event.x},{event.y}) | '
 
     
     def on_tb_pair_submit(self, text): 
-        if text == self.symbol:
+        if text == self.pair:
+            self.captured_output += f"{self.pair} reconfirmed. | "
             if DEBUG_PRINT == 1:
-                print(f"{self.symbol} reconfirmed.")
-                self.redraw_plot()
+                print(self.captured_output)
+                # self.redraw_plot()
         else:
-            self.symbol = text
+            self.pair = text
+            self.captured_output += f"Getting {self.pair} {self.interval} data... | "
             if DEBUG_PRINT == 1:
-                print(f"Getting {self.symbol} {self.interval} data...")
+                print(self.captured_output )
             td_idx_last = self._refresh_plot_data()
+            self.captured_output += f"Loaded up to: {pd.to_datetime(td_idx_last)} | "
             if DEBUG_PRINT == 1:
-                print(f"Loaded up to: {pd.to_datetime(td_idx_last)}")
-                
-            
+                self.captured_output
+              
         # self.data_refresh_flag = False
         # self.update_plot() 
     
     def on_tb_period_submit(self, text): 
         if text == self.interval:
+             self.captured_output += f"{self.interval} reconfirmed. | "
              if DEBUG_PRINT == 1:
-                print(f"{self.interval} reconfirmed.")
-                self.redraw_plot()
+                print(self.captured_output)
+                # self.redraw_plot()
         else:
             self.interval = text
+            self.captured_output += f"Getting {self.pair} {self.interval} data... | "
             if DEBUG_PRINT == 1:
-                    print(f"Getting {self.symbol} {self.interval} data...")
+                    print(self.captured_output)
             td_idx_last = self.refresh_plot_data()
+            self.captured_output += f"Loaded up to: {pd.to_datetime(td_idx_last)} | "
             if DEBUG_PRINT == 1:
-                print(f"Loaded up to: {pd.to_datetime(td_idx_last)}")
+                print(self.captured_output )
 
         # self.data_refresh_flag = False 
         self.update_plot()
@@ -309,7 +309,7 @@ class CaptureOnClick:
             last_entry_idx = self.refresh_plot_data()
             self.data_refresh_flag = True
             self.update_plot()
-            self.captured_output += f'New data up to: {last_entry_idx}'
+            self.captured_output += f'New data up to: {last_entry_idx} | '
             if DEBUG_PRINT == 1:
                 print (self.captured_output)
 
@@ -320,7 +320,7 @@ class CaptureOnClick:
         if ev_name == 'button_release_event':
             # if event.inaxes == self.ax:
             self.save_m_to_file()
-            self.captured_output += f'Saved marks data in: {self.m_filename}'
+            self.captured_output += f'Saved marks data in: {self.m_file} | '
             if DEBUG_PRINT == 1:
                 print (self.captured_output)
 
@@ -338,8 +338,6 @@ class CaptureOnClick:
                 self.captured_output += "Now interactive mode is OFF. "
         self.update_plot()
 
-  
-
     def euclidean_distance(self, p1, p2):
         return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
 
@@ -347,13 +345,13 @@ class CaptureOnClick:
         # Save selected points to a CSV file
         # self.filename
         df = pd.DataFrame(self.marks, columns=['Date', 'x', 'y', 'm_idx', 'ecl_w', 'ecl_h', 'buy', 'ellipse'])
-        df.to_csv(self.m_filename, index=False)
+        df.to_csv(self.m_file, index=False)
 
     def load_and_plot_m_from_file(self):
         # Check if the file exists before loading
-        if os.path.exists(self.m_filename):
+        if os.path.exists(self.m_file):
             # Load selected points from a CSV file
-            df = pd.read_csv(self.m_filename)
+            df = pd.read_csv(self.m_file)
 
             # #draw markings from the saved overlay, fix locations on the timeline
             for index, row in df.iterrows():
@@ -381,8 +379,8 @@ class CaptureOnClick:
                 # first_item_start_time= pd.to_datetime(first_item_start_time)
                 
         else:
-            # print(f"File '{self.m_filename}' does not exist. No points loaded.")
-            self.captured_output = f"File '{self.m_filename}' does not exist. No points loaded."
+            # print(f"File '{self.m_file}' does not exist. No points loaded.")
+            self.captured_output = f"File '{self.m_file}' does not exist. No points loaded."
             if DEBUG_PRINT == 1:
                 print(self.captured_output)
     #fixes y locations for 
