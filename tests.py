@@ -11,7 +11,7 @@ from capture_plot import CaptureOnClick
 
 #======================================================
 
-data_processor = DataProc('.\\.data\\ntb\\')
+data_processor = DataProc('.\\.data\\')
 plotter = CaptureOnClick(data_proc=data_processor)
 
 
