@@ -397,6 +397,8 @@ class CaptureOnClick:
         # if ev_name == 'button_release_event':
             self._save_m_to_file()
             self.captured_output = f'Saved marks data in: {self.m_file} | '
+            self._redraw_marks()
+            self._redraw_plot()
             if DEBUG_PRINT == 1:
                 print (self.captured_output)
     def on_checkbox_clicked(self, label):

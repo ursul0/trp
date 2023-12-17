@@ -39,6 +39,7 @@ dp = DataProc('.\\.data\\0.05a')
 plotter = CaptureOnClick(data_proc=dp)
 
 
+#TODO save marks removes marks!!!
 
 
 
