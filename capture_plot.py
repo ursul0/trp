@@ -19,22 +19,7 @@ import matplotlib.patches as patches
 from threading import Thread 
 import threading
 
-# from matplotlib.animation import FuncAnimation
-# if not hasattr(mpf, 'animation'):
-#     raise ImportError("mplfinance version doesn't support animation. Please update mplfinance.")
-
-# from data_proc import get_new_data, make_file_names
 from data_proc import DataProc
-
-
-
-# import mplcursors
-#%matplotlib inline
-#   %matplotlib widget
-#%matplotlib notebook
-
-# from matplotlib.widgets import Dropdown
-# from ipywidgets import widgets
 
 
 
@@ -47,7 +32,7 @@ PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', \
               '12h', '1d', '3d', '1w', '1M']
 SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 
-DEBUG_PRINT = 0
+DEBUG_PRINT = 11
 
 
 
@@ -68,27 +53,36 @@ class CaptureOnClick:
 
         #initialize data processor
         if data_proc is None:
-            "Provide DataProc object for data processing."
+            print("Provide DataProc object.")
+            return
         else:
-            self.data_proc = data_proc
+            self.dp = data_proc
 
-        if pair_df is None:
-            self.pair_df, self.m_file = self.data_proc.get_new_data(self.pair, self.interval,True)
-        else:     
-           self.pair_df = pair_df
+        # self.pair_df = pd.DataFrame(self.data_proc.pair_df).copy(deep=True)
+        self.pair_df = self.dp.pair_df
         
-        self.filename, _ = self.data_proc._make_file_names()
+        #TODO move all file operations away?
+        self.file, self.m_file = self.dp._make_file_names()
         
         #debug print
         self.captured_output = ''
         
-        # self.RefreshThread = INTupdateThread(plotter = self)
+        self.RefreshThread = INTupdateThread(plotter = self)
 
         # Markings:
         self.marks = []
         #TODO maybe: # self.marks =  pd.DataFrame()
+        self.f_new_plot_data = False
 
-        self.run_refresh_flag = False
+        
+        #TODO: in case we want to update old marks a new interval on the same pair
+        self.f_marks_resync = False
+        # self.f_marks_redraw = False
+
+
+
+
+        # self.run_refresh_flag = False
                
         # self.ax.set_ylabel('price')
         # self.ax.set_xlabel('time')
@@ -127,19 +121,37 @@ class CaptureOnClick:
         self.save_data_btn.on_clicked(self.on_save_data_button_click)
  
         # Create CheckButtons widget
-        # self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
-        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
-        # self.checkbox.on_clicked(self.on_checkbox_clicked)
+        self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
+        self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
+        self.checkbox.on_clicked(self.on_checkbox_clicked)
 
-
-        self.update_plot()
+        self.get_plot_data()
+        self.draw_plot()
+        
      
         plt.show()
 
-    def refresh_plot_data(self):   
-        self.pair_df, self.pair, self.interval = self.data_proc._append_data()
+    def get_plot_data(self):   
+        pair_df, pair, interval = self.dp.get_new_data(self.pair, self.interval, False)
+        self.f_new_plot_data = True
+        # sleep(0.01)
+        if not pair_df.empty:
+            self.pair = pair
+            self.interval = interval
+            self.pair_df = pair_df#.copy(deep=True)
+            self.f_new_plot_data = False
+
         return pd.to_datetime(self.pair_df.index[-1]) #same as .tail(1)
-        # sleep(TPC)
+    
+    def refresh_plot_data(self):   
+        pair_df, pair, interval = self.dp.append_data(self.pair, self.interval)
+        if not self.pair_df.empty:
+            self.pair = pair
+            self.interval = interval
+            self.pair_df = pair_df    #.copy(deep=True) if we want to allocate a copy
+        #returns datetime of the data tail entry (last candle data time)
+        return pd.to_datetime(self.pair_df.index[-1]) #same as .tail(1)
+        
         
     def _clear_marks_from_plot(self):
         try:
@@ -148,11 +160,44 @@ class CaptureOnClick:
                 obj_cl.remove() 
         except IndexError:
             pass  
-        self.ax.figure.canvas.draw()
 
-# date, x, y, old_m_idx, e_w, e_h, buy 
-# ['Date'], ['x'],['y'],['m_idx'], ['ecl_w'], ['ecl_h'] ,['buy']
-               
+    def load_and_plot_m_from_file(self):
+        # Check if the file exists before loading
+        if os.path.exists(self.m_file):
+            # Load selected points from a CSV file
+            df = pd.read_csv(self.m_file)
+
+            # #draw markings from the saved overlay, fix locations on the timeline
+            for index, row in df.iterrows():
+                date, x, y, old_m_idx, e_w, e_h, buy = row['Date'], row['x'], row['y'], row['m_idx'], row['ecl_w'], row['ecl_h'] ,row['buy']
+                color = 'green' if buy == 1 else 'red'
+
+                m_candle_time = pd.to_datetime(date)
+                try:
+                    new_m_candle_idx = self.pair_df.index.get_loc(m_candle_time)
+                    shift = old_m_idx - new_m_candle_idx
+                    x-=shift
+                except KeyError:
+                    if DEBUG_PRINT == 1:
+                        print(f"Candle at {m_candle_time} is out of bounds.")
+                    self.captured_output = f"Candle at {m_candle_time} is out of bounds."
+                    continue
+                else:
+                    ellipse = patches.Ellipse((x, y), width=e_w, height=e_h, angle=0, color=color, fill=False)
+                    self.marks.append((date, x, y, new_m_candle_idx, e_w, e_h, buy, ellipse))
+                    self.ax.add_patch(ellipse)
+                
+                # first_item_start_time = str(df['Date'][0])
+                # first_item_start_time_n = mdates.datestr2num(first_item_start_time)
+                # first_item_start_time_d = mdates.num2date(first_item_start_time_n)
+                # first_item_start_time= pd.to_datetime(first_item_start_time)
+                
+        else:
+            # print(f"File '{self.m_file}' does not exist. No points loaded.")
+            self.captured_output = f"File '{self.m_file}' does not exist. No points loaded."
+            if DEBUG_PRINT == 1:
+                print(self.captured_output)
+
     def _add_marks2plot(self):
         if len(self.marks) > 0:
             try:
@@ -161,41 +206,54 @@ class CaptureOnClick:
                     self.ax.add_patch(obj_cl)
             except IndexError:
                 pass  
-
-        self.ax.figure.canvas.draw()
-
+      
     def _redraw_marks(self):
-        self.marks_resync_flag = True
+        # self.marks_resync_flag = True
         self._clear_marks_from_plot()
         #sync here?1?
         self._add_marks2plot()
         
-        self.ax.figure.canvas.draw()
 
-
-
-
-    #update plot, also from refresher task: INTupdateThread
-    def update_plot(self, live = False):
+    #update plot,  from refresher thread
+    def _t_update_plot(self):
         if hasattr(self, 'ax'):
+            if self.f_marks_resync == True:
+                self._redraw_marks()
+                self.f_marks_resync = False
 
-            self.ax.clear() 
+            if self.f_new_plot_data== True:
+                self.ax.clear() 
+                mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
+                self.ax.set_title(f'Interactive chart of {self.pair}')
+                #resync and add marks
+                self.load_and_plot_m_from_file(self)
+                self.ax.figure.canvas.draw()
+                # plt.pause(TPC/100)
+                # plt.show()
+                self.f_new_plot_data== False
+                           
+
+    def draw_plot(self):
+        
+        # if self.f_new_plot_data != True: 
             mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
-            # self._add_marks2plot()
-            # plt.pause(TPC/100)
+            self.load_and_plot_m_from_file()
+            self.ax.set_title(f'Interactive chart of {self.pair}')
             self.ax.figure.canvas.draw()
             # plt.show()
-
-        #reset flags after plot update
-
+        # else:
+        #     print("WTF?")
+            
     def redraw_plot(self):
-        self.ax.clear()
-        self.ax.set_title(f'Interactive chart of {self.pair}')
-        #add marks to the plot
-        mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
-        self.load_and_plot_m_from_file()
-        self.ax.figure.canvas.draw()
-        
+        if self.pair_df is not None:
+            self.ax.clear()
+            #add marks to the plot
+            mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
+            self.load_and_plot_m_from_file()
+            self.ax.set_title(f'Interactive chart of {self.pair}')
+            self.ax.figure.canvas.draw()
+
+
     #OK
     def add_rmv_plot_mark(self, event):
         # if event.inaxes is not None:
@@ -210,7 +268,7 @@ class CaptureOnClick:
                     if event.key == 'shift' and event.button == 1:
                         # Shift + Left click: Remove the nearest ellipse on axes
                         if self.marks:
-                            distances = [self.euclidean_distance((x_coord, y_coord), (point[1], point[2])) for point in self.marks]
+                            distances = [self._eucl_distance((x_coord, y_coord), (point[1], point[2])) for point in self.marks]
                             nearest_ellipse_index = distances.index(min(distances))
                             # Remove the corresponding patch 
                             _, _, _, _, _, _, _, ellipse_to_remove = self.marks.pop(nearest_ellipse_index)
@@ -256,75 +314,69 @@ class CaptureOnClick:
     def on_pick(self, event):
         # Check if the pick event occurred on the plot_ax or ui_ax
         if event.inaxes == self.ax:
-            if DEBUG_PRINT == 1:
-                print("Click event on plot axes")
-            
+            # if DEBUG_PRINT == 1:
+            #     print("Click event on plot axes")
             self.add_rmv_plot_mark(event)
 
-        else:
-            self.captured_output += f'Figure clicked at: ({event.x},{event.y}) | '
-
+        # else:
+        #     self.captured_output += f' on_pick(): Figure clicked at: ({event.x},{event.y}) | '
     
     def on_tb_pair_submit(self, text): 
         if text == self.pair:
-            self.captured_output += f"{self.pair} reconfirmed. | "
+            self.captured_output = f"{self.pair} reconfirmed. | "
             if DEBUG_PRINT == 1:
                 print(self.captured_output)
-                # self.redraw_plot()
+                self.refresh_plot_data()
+                # self.f_new_plot_data= True
         else:
             self.pair = text
-            self.captured_output += f"Getting {self.pair} {self.interval} data... | "
+            self.captured_output = f"Getting {self.pair} {self.interval} data... | "
+            self.get_plot_data()
+
             if DEBUG_PRINT == 1:
                 print(self.captured_output )
-            td_idx_last = self._refresh_plot_data()
-            self.captured_output += f"Loaded up to: {pd.to_datetime(td_idx_last)} | "
+            td_idx_last = self.refresh_plot_data()
+            last_dta_time = pd.to_datetime(td_idx_last)
+            self.captured_output = f"Loaded up to: {last_dta_time} | "
             if DEBUG_PRINT == 1:
-                self.captured_output
-              
-        # self.data_refresh_flag = False
-        # self.update_plot() 
+                print(self.captured_output)
     
     def on_tb_period_submit(self, text): 
         if text == self.interval:
-             self.captured_output += f"{self.interval} reconfirmed. | "
+             self.captured_output = f"{self.interval} reconfirmed. | "
              if DEBUG_PRINT == 1:
                 print(self.captured_output)
-                # self.redraw_plot()
+                self.refresh_plot_data()
+                # self.f_new_plot_data= True
         else:
             self.interval = text
             self.captured_output += f"Getting {self.pair} {self.interval} data... | "
-            if DEBUG_PRINT == 1:
+            if DEBUG_PRINT == 11:
                     print(self.captured_output)
             td_idx_last = self.refresh_plot_data()
-            self.captured_output += f"Loaded up to: {pd.to_datetime(td_idx_last)} | "
+            last_dta_time = pd.to_datetime(td_idx_last)
+            self.captured_output = f"Loaded up to: {last_dta_time} | "
             if DEBUG_PRINT == 1:
                 print(self.captured_output )
-
-        # self.data_refresh_flag = False 
-        self.update_plot()
-        
+ 
     def on_get_data_button_click(self, event):
-        ev_name = event.name
-        if ev_name == 'button_release_event':
-            last_entry_idx = self.refresh_plot_data()
-            self.data_refresh_flag = True
-            self.update_plot()
-            self.captured_output += f'New data up to: {last_entry_idx} | '
+
+            nd = self.refresh_plot_data()
+            # sleep(0.01)
+            self.redraw_plot()
+            ndt = pd.to_datetime(self.get_plot_data())
+            self.captured_output = f'New data up to: {ndt} | '  
+
             if DEBUG_PRINT == 1:
                 print (self.captured_output)
 
     def on_save_data_button_click(self, event):
-        # x_coord = event.xdata
-        # y_coord = event.ydata  
-        ev_name = event.name
-        if ev_name == 'button_release_event':
-            # if event.inaxes == self.ax:
-            self.save_m_to_file()
-            self.captured_output += f'Saved marks data in: {self.m_file} | '
+        # ev_name = event.name
+        # if ev_name == 'button_release_event':
+            self._save_m_to_file()
+            self.captured_output = f'Saved marks data in: {self.m_file} | '
             if DEBUG_PRINT == 1:
                 print (self.captured_output)
-
-
     def on_checkbox_clicked(self, label):
         if label == 'INT':
             if self.checkbox.get_status()[0]:
@@ -336,60 +388,20 @@ class CaptureOnClick:
                 self.RefreshThread.stop()  
                 self.run_refresh_flag = False
                 self.captured_output += "Now interactive mode is OFF. "
-        self.update_plot()
 
-    def euclidean_distance(self, p1, p2):
+
+    def _eucl_distance(self, p1, p2):
         return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
-
-    def save_m_to_file(self):
+    def _save_m_to_file(self):
         # Save selected points to a CSV file
         # self.filename
         df = pd.DataFrame(self.marks, columns=['Date', 'x', 'y', 'm_idx', 'ecl_w', 'ecl_h', 'buy', 'ellipse'])
         df.to_csv(self.m_file, index=False)
-
-    def load_and_plot_m_from_file(self):
-        # Check if the file exists before loading
-        if os.path.exists(self.m_file):
-            # Load selected points from a CSV file
-            df = pd.read_csv(self.m_file)
-
-            # #draw markings from the saved overlay, fix locations on the timeline
-            for index, row in df.iterrows():
-                date, x, y, old_m_idx, e_w, e_h, buy = row['Date'], row['x'], row['y'], row['m_idx'], row['ecl_w'], row['ecl_h'] ,row['buy']
-                color = 'green' if buy == 1 else 'red'
-
-                m_candle_time = pd.to_datetime(date)
-                try:
-                    new_m_candle_idx = self.pair_df.index.get_loc(m_candle_time)
-                    shift = old_m_idx - new_m_candle_idx
-                    x-=shift
-                except KeyError:
-                    if DEBUG_PRINT == 1:
-                        print(f"Candle at {m_candle_time} is out of bounds.")
-                    self.captured_output = f"Candle at {m_candle_time} is out of bounds."
-                    continue
-                else:
-                    ellipse = patches.Ellipse((x, y), width=e_w, height=e_h, angle=0, color=color, fill=False)
-                    self.marks.append((date, x, y, new_m_candle_idx, e_w, e_h, buy, ellipse))
-                    self.ax.add_patch(ellipse)
-                
-                # first_item_start_time = str(df['Date'][0])
-                # first_item_start_time_n = mdates.datestr2num(first_item_start_time)
-                # first_item_start_time_d = mdates.num2date(first_item_start_time_n)
-                # first_item_start_time= pd.to_datetime(first_item_start_time)
-                
-        else:
-            # print(f"File '{self.m_file}' does not exist. No points loaded.")
-            self.captured_output = f"File '{self.m_file}' does not exist. No points loaded."
-            if DEBUG_PRINT == 1:
-                print(self.captured_output)
-    #fixes y locations for 
-
-    def draw_MA(self):
-        # This is just a placeholder function, you can customize it to draw something on the chart
-        # self.captured_output = "should draw ma on the chart"
-        mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500, mav=(50,21,7))
-    def remove_MA(self):
+    # def draw_MA(self):
+    #     # This is just a placeholder function, you can customize it to draw something on the chart
+    #     # self.captured_output = "should draw ma on the chart"
+    #     mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500, mav=(50,21,7))
+    # def remove_MA(self):
         # This is just a placeholder function, you can customize it to remove the drawing
         # self.captured_output = "should remove ma from the chart"
         self.ax.clear()
@@ -405,7 +417,7 @@ class INTupdateThread(Thread):
     def run(self):
         try:
             while not self.stop_event.is_set():
-                self.plotter.update_plot()
+                self.plotter._t_update_plot()
                 sleep(1)
         except Exception as e:
             # Handle exceptions here or log them
