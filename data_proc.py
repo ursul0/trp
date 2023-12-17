@@ -114,6 +114,7 @@ class DataProc:
 
         upd_time = self.data_map[pair][interval]['Updated']
         #screen size of data
+        #check for .empty() 
         if upd_time == None: #fresh data is needed 
 
             target_start_time,_ = self.calculate_data_span(TOTAL_CANDLES, interval)
