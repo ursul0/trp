@@ -23,7 +23,7 @@ INTERVALS = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h'
 # PAIR_DATA = pd.DataFrame(columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
 
 #this is not the way:
-INTERVALS_ON_APPEND = 3
+INTERVALS_ON_APPEND = 1
 
 TOTAL_CANDLES = 100
 SYMBOL = 'BTCUSDT'
@@ -31,7 +31,12 @@ DEF_INTERVAL ='1m'
 DATA_REFRESH_RATE = 1 #data refresh in candles (one means we poll the candle historical data)
 
 class DataProc:
-    """  data collector/processor """
+    """ 
+        data collector/processor
+        gets historic oclh+volume from binanca, stores in pair_df_store[SYMBOLS][INTERVALS]
+        uses TOTAL_CANDLES as "fixed screen size"
+
+    """
     def __init__(self, path = '.\\.data\\', pair = SYMBOL, interval = DEF_INTERVAL, candles = TOTAL_CANDLES):
         self.bnc_key, self.bnc_sec = self._get_creds()
         self.client = Client(self.bnc_key, self.bnc_sec)
@@ -91,7 +96,7 @@ class DataProc:
     def _save_data_store(self):
         pd.DataFrame(self.pair_df_store).to_csv((self.file+'.datastore'))
 
-    def get_historic_data(self, symbol, timestamp, interval):
+    def _get_historic_data_BNNC(self, symbol, timestamp, interval):
 
         t_start= int(datetime.timestamp(timestamp)*1000)
 
@@ -117,8 +122,8 @@ class DataProc:
         #check for .empty() 
         if upd_time == None: #fresh data is needed 
 
-            target_start_time,_ = self.calculate_data_span(TOTAL_CANDLES, interval)
-            pair_df = self.get_historic_data(symbol=pair, timestamp=target_start_time, interval=interval)
+            target_start_time,_ = self._calculate_data_span(TOTAL_CANDLES, interval)
+            pair_df = self._get_historic_data_BNNC(symbol=pair, timestamp=target_start_time, interval=interval)
             cur_time = pd.Timestamp.now()
             
             #TODO consiger removing file operation from here!
@@ -140,8 +145,8 @@ class DataProc:
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], self.pair, self.interval 
         
 
-    def self_append_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
-        #NOT WORKING, JUST A COPY OF SOMETHING RELEVANT and non working properly
+    def _self_append_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
+        #NOT WORKING, JUST A COPY OF SOMETHING RELEVANT 
 
 
         if pair == SYMBOL:
@@ -153,12 +158,12 @@ class DataProc:
         cur_time = pd.Timestamp.now()
         upd_time = self.data_map[pair][interval]['Updated']
         
-        candle_t,_ = self.calculate_data_span(1, interval)
+        candle_t,_ = self._calculate_data_span(1, interval)
         candle_t=candle_t-pd.Timestamp.now()
 
         #checking if candle time has passed, to get a new one
         if (upd_time - cur_time).total_seconds()/candle_t.total_seconds() > 1:
-            target_start_time,_ = self.calculate_data_span(1, interval)
+            target_start_time,_ = self._calculate_data_span(1, interval)
             tgt_timestamp = pd.Timestamp(target_start_time)
             # tgt_timestamp = pd.to_timedelta(target_start_time)
             #update x last candles
@@ -177,6 +182,8 @@ class DataProc:
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], pair, interval        
 
     def append_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
+        #temp solution
+        #TODO implement proper append mechanism
         if pair == SYMBOL:
             pair = self.pair
         if interval == DEF_INTERVAL:
@@ -185,7 +192,7 @@ class DataProc:
         # candles = TOTAL_CANDLES
         cur_time = pd.Timestamp.now()
         upd_time = self.data_map[pair][interval]['Updated']
-        candle_t,_ = self.calculate_data_span(1, interval)
+        candle_t,_ = self._calculate_data_span(1, interval)
         candle_t=candle_t-pd.Timestamp.now()
 
         try:
@@ -196,12 +203,12 @@ class DataProc:
         # if (upd_time - cur_time).total_seconds()/candle_t.total_seconds() > float(DATA_REFRESH_RATE/90):
         # self.data_map[pair][interval]['StartDate'] = self.pair_df_store[pair][interval].index[0]
     
-        target_start_time,_ = self.calculate_data_span(INTERVALS_ON_APPEND, interval)
+        target_start_time,_ = self._calculate_data_span(INTERVALS_ON_APPEND, interval)
         tgt_timestamp = pd.Timestamp(target_start_time)
         # tgt_timestamp = pd.to_timedelta(target_start_time)
         #update x last candles
 
-        pair_df = self.get_historic_data(symbol=pair, timestamp=tgt_timestamp, interval=interval)
+        pair_df = self._get_historic_data_BNNC(symbol=pair, timestamp=tgt_timestamp, interval=interval)
         cur_time = pd.Timestamp.now()
         new_dta_time = pair_df.index[-1]
 
@@ -228,7 +235,7 @@ class DataProc:
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], pair, interval
 
 
-    def get_all_historic_data(self, symbol, interval, filename):
+    def _get_all_historic_data(self, symbol, interval, filename):
 
         ##SHOIULD NOT BE WORKING AS IT IS
         last_date = self.pair_df_store[interval]['LastDate']
@@ -277,7 +284,7 @@ class DataProc:
         # df.to_csv(filename)
         return self.pair_df
 
-    def yf_get_stock_data(self, symbol, start_date, end_date):
+    def _yf_get_stock_data(self, symbol, start_date, end_date):
             
         # Fetch historical stock data
         # symbol = "AAPL"
@@ -297,7 +304,7 @@ class DataProc:
         # ohlc.index = date2num(ohlc.index.to_pydatetime())
         return ohlc
 
-    def read_csv_data_tail(self, filename, tail):
+    def _read_csv_data_tail(self, filename, tail):
 
         pair_df = pd.read_csv(filename, index_col=0)
         print (pair_df.shape)
@@ -341,7 +348,7 @@ class DataProc:
 
         return file, m_file
 
-    def calculate_data_span(self, candle_count, period):
+    def _calculate_data_span(self, candle_count, period):
     # Map period to timedelta
         period_mapping = {
             '1m': pd.Timedelta(minutes=1),

@@ -27,12 +27,12 @@ from data_proc import DataProc
 TOTAL_CANDLES = 100
 TPC = 100
 MARK_WIDTH = 1.5
-# SYMBOL_ENM = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
-PERIOD_ENM = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', \
-              '12h', '1d', '3d', '1w', '1M']
+# SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
+# PERIODS = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
 
+INTERVALS_ON_APPEND = 1
 
-DEBUG_PRINT = 11
+DEBUG_PRINT = 1
 
 
 
@@ -67,26 +67,25 @@ class CaptureOnClick:
         #debug print
         self.captured_output = ''
         
-        self.RefreshThread = INTupdateThread(plotter = self)
+        #initialize 
+        self.f_new_plot_data = False
+        # self.RefreshThread = INTupdateThread(plotter = self)
 
         # Markings:
         self.marks = []
         #TODO maybe: # self.marks =  pd.DataFrame()
-        self.f_new_plot_data = False
+        
 
         
         #TODO: in case we want to update old marks a new interval on the same pair
         self.f_marks_resync = False
         # self.f_marks_redraw = False
 
-
-
-
         # self.run_refresh_flag = False
                
         # self.ax.set_ylabel('price')
         # self.ax.set_xlabel('time')
-        self.ax.set_title(f'Interactive chart of {self.pair}')
+        self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')
               
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_pick)
         # def disconnect_callback(self):
@@ -101,14 +100,27 @@ class CaptureOnClick:
 
         # Add textboxes below the axes
         textbox_pair_pos = [0.15, 0.015, 0.12, 0.05]
-        textbox_period_pos = [0.4, 0.015, 0.05, 0.05]
+        textbox_interval_pos = [0.4, 0.015, 0.05, 0.05]
         self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', \
                                initial=self.pair)
-        self.tb_period = TextBox(plt.gcf().add_axes(textbox_period_pos), 'Period:', \
+        self.tb_interval = TextBox(plt.gcf().add_axes(textbox_interval_pos), 'Period:', \
                                  initial=self.interval)
+        
+        
+        # self.tb_pair.active = False
+        # self.tb_interval.active = False
+
         # Connect events to the textboxes
-        self.tb_pair.on_submit(self.on_tb_pair_submit)
-        self.tb_period.on_submit(self.on_tb_period_submit)
+        # self.tb_pair.on_submit(self.on_tb_pair_submit())
+        # self.tb_interval.on_submit(self.on_tb_interval_submit)
+
+         # Connect events to the textboxes
+        self.tb_pair.on_submit(lambda text: self.on_tb_pair_submit(text, self.event))
+        self.tb_interval.on_submit(lambda text: self.on_tb_interval_submit(text, self.event))
+
+
+
+        
 
         # button to get new data
         button_pos = [0.65, 0.015, 0.1, 0.05] 
@@ -121,36 +133,30 @@ class CaptureOnClick:
         self.save_data_btn.on_clicked(self.on_save_data_button_click)
  
         # Create CheckButtons widget
-        self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
-        self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
-        self.checkbox.on_clicked(self.on_checkbox_clicked)
+        # self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
+        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
+        # self.checkbox.on_clicked(self.on_checkbox_clicked)
+        self.event = None
 
-        self._get_plot_data()
+        # no_pasaran_flag = True
+
+        self.get_plot_data()
         self._draw_plot()
-        
-     
         plt.show()
+        # self.ax.figure.show()
 
-    def _get_plot_data(self):   
+    def get_plot_data(self):   
         pair_df, pair, interval = self.dp.get_new_data(self.pair, self.interval, False)
-        self.f_new_plot_data = True
         # sleep(0.01)
-        if not pair_df.empty:
-            self.pair = pair
-            self.interval = interval
-            self.pair_df = pair_df#.copy(deep=True)
-            self.f_new_plot_data = False
+        self.pair_df = pair_df#.copy(deep=True)
 
-        return pd.to_datetime(self.pair_df.index[-1]) #same as .tail(1)
+        return pd.to_datetime(self.pair_df.index[-1]) 
     
-    def _refresh_plot_data(self):   
+    def refresh_plot_data(self):   
         pair_df, pair, interval = self.dp.append_data(self.pair, self.interval)
-        if not self.pair_df.empty:
-            self.pair = pair
-            self.interval = interval
-            self.pair_df = pair_df    #.copy(deep=True) if we want to allocate a copy
+        self.pair_df = pair_df    #.copy(deep=True) if we want to allocate a copy
         #returns datetime of the data tail entry (last candle data time)
-        return pd.to_datetime(self.pair_df.index[-1]) #same as .tail(1)
+        return pd.to_datetime(self.pair_df.index[-1])
         
         
     def _clear_marks_from_plot(self):
@@ -162,6 +168,7 @@ class CaptureOnClick:
             pass  
 
     def load_and_plot_m_from_file(self):
+        #TODO: remove all file operations from the class
         # Check if the file exists before loading
         if os.path.exists(self.m_file):
             # Load selected points from a CSV file
@@ -203,72 +210,112 @@ class CaptureOnClick:
             try:
                 for mark_entry in self.marks:
                     obj_cl = mark_entry[7]  
+                    # DataFrame(self.marks, columns=['Date', 'x', 'y', 'm_idx', 'ecl_w', 'ecl_h', 'buy', 'ellipse'])
+
+                    # ax_h_end = self.ax.get_ylim()[1]
+                    # ax_h_st = self.ax.get_ylim()[0]
+                    # ax_w = self.ax.get_xlim()[1] 
+                    # ax_h = ax_h_end - ax_h_st
+                    # h2w_factor = ax_h / ax_w  
+                    # ecl_w = MARK_WIDTH
+                    # ecl_h = h2w_factor  * 10/6 #ratio
+                    # buy = 1 if color == 'green' else 0
+                                 
+                    # color = 'green' if event.button == 1 else 'red'
+                    # 
+                    # ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
+                    
                     self.ax.add_patch(obj_cl)
             except IndexError:
                 pass  
+            # plt.draw()
       
     def _redraw_marks(self):
         # self.marks_resync_flag = True
         self._clear_marks_from_plot()
         #sync here?1?
         self._add_marks2plot()
-        
-
+        # plt.draw()
+   
     #update plot,  from refresher thread
     def _t_update_plot(self):
-        if hasattr(self, 'ax'):
+
+        # if hasattr(self, 'ax'):
             if self.f_marks_resync == True:
                 self._redraw_marks()
                 self.f_marks_resync = False
+                # plt.draw()
 
             if self.f_new_plot_data== True:
-                self.ax.clear() 
-                mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
-                self.ax.set_title(f'Interactive chart of {self.pair}')
-                #resync and add marks
-                self.load_and_plot_m_from_file(self)
-                self.ax.figure.canvas.draw()
-                # plt.pause(TPC/100)
-                # plt.show()
+                self._redraw_plot()
                 self.f_new_plot_data== False
+
+            self._update_plot_text()
+            self.ax.figure.canvas.draw()
                            
+
+    def _replot_data_and_marks(self):
+            self._redraw_plot()
+            self.ax.clear() 
+            mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
+            #resync and add marks
+            self.load_and_plot_m_from_file()
+        
 
     def _draw_plot(self):
         
         # if self.f_new_plot_data != True: 
             mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
             self.load_and_plot_m_from_file()
-            self.ax.set_title(f'Interactive chart of {self.pair}')
+            self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')
             self.ax.figure.canvas.draw()
             # plt.show()
         # else:
         #     print("WTF?")
             
     def _redraw_plot(self):
-        #only the last candle is here
-        #not empty(why would it be?) and has last candle only
+        #TODO reveiew and rewrite
+        
+        
+        # no check if empty(why would it be?) and has last candle only
         if self.pair_df.shape[0] == TOTAL_CANDLES:
+            #draw new data, including new interval
             self.ax.clear()
             mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
             self.load_and_plot_m_from_file()
-            self.ax.set_title(f'Interactive chart of {self.pair}')
-        elif self.pair_df.shape[0] == 1:
+            
+          
+        elif self.pair_df.shape[0] == INTERVALS_ON_APPEND:
+            #TODO: update only the last candle, not whole plot 
+
+
             #update last v-line/candle on a plot
+            mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
+            
             # line.set_xdata([updated_position])
             print('update last line on a plot!!!')
         else:
             print('_redraw_plot: WTF?')
-            #draw new data, including new interval
+            
             #
 
+            
+     
+        # self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')        
+        # self.ax.figure.canvas.draw()
+        
+        # plt.draw()
+
+    def _update_plot_text(self):
+        self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')
+        self.tb_pair.set_val(self.pair)
+        self.tb_interval.set_val(self.interval)
 
 
-        self.ax.figure.canvas.draw()
 
 
-    #OK
+    #Plot interactions:
     def add_rmv_plot_mark(self, event):
-        # if event.inaxes is not None:
         if event.inaxes == self.ax:
             #get data coordinates:
             x_coord = event.xdata
@@ -306,7 +353,7 @@ class CaptureOnClick:
                         m_candle_idx = self.pair_df.index.get_loc(date_clicked)
                         color = 'green' if event.button == 1 else 'red'
                         ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
-                        buy = 1 if event.button == 1 else 0
+                        buy = 1 if color == 'green' else 0
                         self.marks.append((date_clicked, x_coord, y_coord, m_candle_idx, ecl_w, ecl_h, buy, ellipse))
                         self.ax.add_patch(ellipse)
 
@@ -325,112 +372,125 @@ class CaptureOnClick:
     #handle UI events
     def on_pick(self, event):
         # Check if the pick event occurred on the plot_ax or ui_ax
+        self.event = event
         if event.inaxes == self.ax:
-            # if DEBUG_PRINT == 1:
             #     print("Click event on plot axes")
             self.add_rmv_plot_mark(event)
-
-        # else:
-        #     self.captured_output += f' on_pick(): Figure clicked at: ({event.x},{event.y}) | '
-    
-    def on_tb_pair_submit(self, text): 
-        if text == self.pair:
-            self.captured_output = f"{self.pair} reconfirmed. | "
-            if DEBUG_PRINT == 1:
-                print(self.captured_output)
-                self._refresh_plot_data()
-                self._redraw_marks()
-                self._redraw_plot()
-                # self.f_new_plot_data= True
         else:
-            self.pair = text
-            self.captured_output = f"Getting {self.pair} {self.interval} data... | "
-            self._get_plot_data()
-            self._redraw_plot()
-            self._redraw_marks()
+            self.captured_output += f' on_pick(): Figure clicked at: ({event.x},{event.y}) | '
+            if event.key is not None:
+                print(event)
 
-            if DEBUG_PRINT == 1:
-                print(self.captured_output )
-            td_idx_last = self._refresh_plot_data()
-            last_dta_time = pd.to_datetime(td_idx_last)
-            self.captured_output = f"Loaded up to: {last_dta_time} | "
+
+    
+    def on_tb_pair_submit(self, text, event): 
+        if event.name != 'button_release_event' and event.key != '\r':
+            return
+
+        else:
+            if text == self.pair:
+                last_dta_time = pd.to_datetime(self.refresh_plot_data())
+                self.captured_output += f'Added up to: {last_dta_time}'
+                #TODO: make only one vline update now
+                self.f_new_plot_data= True
+                # self.f_marks_resync = False  
+                self._t_update_plot() 
+            else:
+                self.pair = text #self.tb_pair.text
+                self.interval = self.tb_interval.text
+                last_dta_time = pd.to_datetime(self.get_plot_data())
+                self.captured_output += f'Loaded up to: {last_dta_time}'
+                self.f_new_plot_data= True
+                # self.f_marks_resync = True  
+                self._t_update_plot() 
+
             if DEBUG_PRINT == 1:
                 print(self.captured_output)
     
-    def on_tb_period_submit(self, text): 
-        if text == self.interval:
-             self.captured_output = f"{self.interval} reconfirmed. | "
-             if DEBUG_PRINT == 1:
-                print(self.captured_output)
-                self._refresh_plot_data()
-                self._redraw_marks()
-                self._redraw_plot()
-                # self.f_new_plot_data= True
-        else:
-            self.interval = text
-            self.captured_output += f"Getting {self.pair} {self.interval} data... | "
-            if DEBUG_PRINT == 11:
-                    print(self.captured_output)
-            td_idx_last = self._refresh_plot_data()
-            self._redraw_plot()
-            #TODO mayby get from file?
-            self._redraw_marks()
-            self._redraw_plot()
-            last_dta_time = pd.to_datetime(td_idx_last)
-            self.captured_output = f"Loaded up to: {last_dta_time} | "
+    def on_tb_interval_submit(self, text, event): 
+        if event.name != 'button_release_event' and event.key != '\r':
+            return
+
+            #  text_box = TextBox(ax, label="Period:", initial="10")
+            #  if fig.canvas.manager.key_press_handler_id == text_box.submit_ctx.id:
+            # self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', initial=self.pair)
+        # if self.fig.canvas.manager.key_press_handler_id == self.tb_pair.submit_ctx.id: 
+        else:  
+            if text == self.interval:
+                self.interval = text #self.tb_pair.text
+                last_dta_time = pd.to_datetime(self.refresh_plot_data())
+                #TODO: make only one vline update now
+                self.captured_output = f'Reconfirmed interval: {self.interval}'
+                self.captured_output += f' Added up to: {last_dta_time}'
+                self.f_new_plot_data= False
+                # self.f_marks_resync = False  
+                self._t_update_plot() 
+                
+            else:
+                #get both textboxes:
+                self.interval = text
+                self.pair = self.tb_pair.text
+                last_dta_time = pd.to_datetime(self.get_plot_data())
+                self.captured_output += f' | Loaded up to: {last_dta_time}'
+                self.f_new_plot_data= True
+                # self.f_marks_resync = True  
+                self._t_update_plot() 
             if DEBUG_PRINT == 1:
                 print(self.captured_output )
  
     def on_get_data_button_click(self, event):
-
-            nd = self._refresh_plot_data()
-            self._redraw_marks()
-            self._redraw_plot()
-            ndt = pd.to_datetime(self._get_plot_data())
-            self.captured_output = f'New data up to: {ndt} | '  
-
-            if DEBUG_PRINT == 1:
-                print (self.captured_output)
+        if event.name == 'button_release_event':
+            last_dta_time = pd.to_datetime(self.get_plot_data())
+            self.captured_output = f'Loaded up to: {last_dta_time}' 
+            self.f_new_plot_data= True
+            # self.f_marks_resync = True  
+            self._t_update_plot()  
+        if DEBUG_PRINT == 1:
+            print (self.captured_output)
 
     def on_save_data_button_click(self, event):
-        # ev_name = event.name
-        # if ev_name == 'button_release_event':
+         if event.name == 'button_release_event':
             self._save_m_to_file()
-            self.captured_output = f'Saved marks data in: {self.m_file} | '
-            self._redraw_marks()
-            self._redraw_plot()
-            if DEBUG_PRINT == 1:
-                print (self.captured_output)
-    def on_checkbox_clicked(self, label):
-        if label == 'INT':
-            if self.checkbox.get_status()[0]:
-                self.captured_output += "Now interactive mode is ON. "
-                self.RefreshThread.run()
-                self.run_refresh_flag = True
-            else:
-                # deselected: Stop the INTupdateThread when interactive mode is turned off
-                self.RefreshThread.stop()  
-                self.run_refresh_flag = False
-                self.captured_output += "Now interactive mode is OFF. "
+            self.captured_output = f'Saved marks data in: {self.m_file}'
+     
+    def on_checkbox_clicked(self, label, event):
+        if event.key is None:
+            return
+        if event.name == 'button_release_event':
+            if label == 'INT':
+                if self.checkbox.get_status()[0]:
+                    self.captured_output += "Now interactive mode is ON. "
+                    self.RefreshThread.run()
+                    self.run_refresh_flag = True
+                else:
+                    # deselected: Stop the INTupdateThread when interactive mode is turned off
+                    self.RefreshThread.stop()  
+                    self.run_refresh_flag = False
+                    self.captured_output += "Now interactive mode is OFF. "
 
 
     def _eucl_distance(self, p1, p2):
         return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
     def _save_m_to_file(self):
-        # Save selected points to a CSV file
-        # self.filename
+        # Save marks to a CSV file
         df = pd.DataFrame(self.marks, columns=['Date', 'x', 'y', 'm_idx', 'ecl_w', 'ecl_h', 'buy', 'ellipse'])
         df.to_csv(self.m_file, index=False)
-    # def draw_MA(self):
-    #     # This is just a placeholder function, you can customize it to draw something on the chart
-    #     # self.captured_output = "should draw ma on the chart"
-    #     mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500, mav=(50,21,7))
-    # def remove_MA(self):
-        # This is just a placeholder function, you can customize it to remove the drawing
-        # self.captured_output = "should remove ma from the chart"
-        self.ax.clear()
-        mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
-   
+        self.captured_output = f'Saved marks into: {self.m_file}'
+
+    def _get_mark_cfg(self):
+        #TODO finish the helper func
+        # patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
+
+        ax_h_end = self.ax.get_ylim()[1]
+        ax_h_st = self.ax.get_ylim()[0]
+        ax_w = self.ax.get_xlim()[1] 
+        ax_h = ax_h_end - ax_h_st
+        h2w_factor = ax_h / ax_w  
+        ecl_w = MARK_WIDTH
+        ecl_h = h2w_factor  * 10/6 #ratio
+
+        return ecl_h,ecl_w
+
 
 class INTupdateThread(Thread):
     def __init__(self, plotter):
@@ -441,8 +501,9 @@ class INTupdateThread(Thread):
     def run(self):
         try:
             while not self.stop_event.is_set():
-                self.plotter._t_update_plot()
-                sleep(1)
+                if self.plotter.f_new_plot_data == True:
+                    self.plotter._t_update_plot()
+                sleep(0.1)
         except Exception as e:
             # Handle exceptions here or log them
             print(f"Thread Error: {e}")
