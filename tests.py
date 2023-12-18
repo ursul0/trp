@@ -46,6 +46,7 @@ plotter = CaptureOnClick(data_proc=dp)
 #TODO add sessions (/trades) + auto populate
 #TODO check of on _refresh more then 1 is needed
 
+#TODO add tests
 
 #TODO review flags & thread 
 

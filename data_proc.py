@@ -116,7 +116,6 @@ class DataProc:
             pair = self.pair
         if interval == DEF_INTERVAL:
             interval = self.interval
-
         upd_time = self.data_map[pair][interval]['Updated']
         #screen size of data
         #check for .empty() 
@@ -125,7 +124,6 @@ class DataProc:
             target_start_time,_ = self._calculate_data_span(TOTAL_CANDLES, interval)
             pair_df = self._get_historic_data_BNNC(symbol=pair, timestamp=target_start_time, interval=interval)
             cur_time = pd.Timestamp.now()
-            
             #TODO consiger removing file operation from here!
             if savedata == True:
                 pair_df.to_csv(self.file)
@@ -141,7 +139,7 @@ class DataProc:
             self.pair_df = pair_df
             self.pair = pair
             self.interval = interval
-
+        
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], self.pair, self.interval 
         
 

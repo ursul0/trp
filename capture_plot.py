@@ -384,7 +384,8 @@ class CaptureOnClick:
 
     
     def on_tb_pair_submit(self, text, event): 
-        if event.name != 'button_release_event' and event.key != '\r':
+        # if event.name != 'button_release_event' and event.key != '\r':
+        if 0:
             return
 
         else:
@@ -408,9 +409,10 @@ class CaptureOnClick:
                 print(self.captured_output)
     
     def on_tb_interval_submit(self, text, event): 
-        if event.name != 'button_release_event' and event.key != '\r':
+        # if event.name != 'button_release_event' and event.key != '\r':
+        if 0:
             return
-
+        
             #  text_box = TextBox(ax, label="Period:", initial="10")
             #  if fig.canvas.manager.key_press_handler_id == text_box.submit_ctx.id:
             # self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', initial=self.pair)
