@@ -12,7 +12,7 @@ INTERVAL ='1m'
 
 #======================================================
 
-dp = DataProc('.\\.data\\0.05a\\')
+dp = DataProc('.\\.data\\v0.0503a\\')
 
 # #datamap initialized with two entries: BTCUSDT and ETHUSDT, each may hold candles data in corresponding interval from INTERVALS 
 # datamap = pd.DataFrame(dp.data_map)
@@ -40,6 +40,7 @@ dp = DataProc('.\\.data\\0.05a\\')
 plotter = CaptureOnClick(data_proc=dp)
 
 # 18-Dec-2023:
+#TODO move marks to df
 #TODO add custom interval from UI + selection/mechanism to set different TOTAL_CANDLES
 #TODO implement save marks removes marks!!!
 #TODO review marks resync(store) mechanism (file vs local store/define on_interval_change functionality)

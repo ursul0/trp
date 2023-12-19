@@ -21,6 +21,12 @@ import threading
 
 from data_proc import DataProc
 
+#configure backend
+import matplotlib
+
+# interactive backends: GTK3Agg, GTK3Cairo, GTK4Agg, GTK4Cairo, MacOSX, nbAgg, QtAgg, QtCairo, 
+#  TkAgg, TkCairo, WebAgg, WX, WXAgg, WXCairo, Qt5Agg, Qt5Cairo
+# matplotlib.use('TkAgg')
 
 
 #up to 2500?
@@ -32,7 +38,7 @@ MARK_WIDTH = 1.5
 
 INTERVALS_ON_APPEND = 1
 
-DEBUG_PRINT = 1
+DEBUG_PRINT = 0
 
 
 
@@ -53,7 +59,7 @@ class CaptureOnClick:
 
         #initialize data processor
         if data_proc is None:
-            print("Provide DataProc object.")
+            self._print_debug("Provide DataProc object.")
             return
         else:
             self.dp = data_proc
@@ -69,7 +75,7 @@ class CaptureOnClick:
         
         #initialize 
         self.f_new_plot_data = False
-        # self.RefreshThread = INTupdateThread(plotter = self)
+        self.RefreshThread = INTupdateThread(plotter = self)
 
         # Markings:
         self.marks = []
@@ -81,7 +87,7 @@ class CaptureOnClick:
         self.f_marks_resync = False
         # self.f_marks_redraw = False
 
-        # self.run_refresh_flag = False
+        self.run_refresh_flag = False
                
         # self.ax.set_ylabel('price')
         # self.ax.set_xlabel('time')
@@ -111,16 +117,9 @@ class CaptureOnClick:
         # self.tb_interval.active = False
 
         # Connect events to the textboxes
-        # self.tb_pair.on_submit(self.on_tb_pair_submit())
-        # self.tb_interval.on_submit(self.on_tb_interval_submit)
+        self.tb_pair.on_submit(self.on_tb_pair_submit)
+        self.tb_interval.on_submit(self.on_tb_interval_submit)
 
-         # Connect events to the textboxes
-        self.tb_pair.on_submit(lambda text: self.on_tb_pair_submit(text, self.event))
-        self.tb_interval.on_submit(lambda text: self.on_tb_interval_submit(text, self.event))
-
-
-
-        
 
         # button to get new data
         button_pos = [0.65, 0.015, 0.1, 0.05] 
@@ -133,9 +132,10 @@ class CaptureOnClick:
         self.save_data_btn.on_clicked(self.on_save_data_button_click)
  
         # Create CheckButtons widget
-        # self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
-        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
-        # self.checkbox.on_clicked(self.on_checkbox_clicked)
+        self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
+        self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
+        self.checkbox.on_clicked(self.on_checkbox_clicked)
+
         self.event = None
 
         # no_pasaran_flag = True
@@ -169,7 +169,7 @@ class CaptureOnClick:
 
     def load_and_plot_m_from_file(self):
         #TODO: remove all file operations from the class
-        # Check if the file exists before loading
+        # Check if the file exists before loading, fix the rest of the crap
         if os.path.exists(self.m_file):
             # Load selected points from a CSV file
             df = pd.read_csv(self.m_file)
@@ -185,9 +185,7 @@ class CaptureOnClick:
                     shift = old_m_idx - new_m_candle_idx
                     x-=shift
                 except KeyError:
-                    if DEBUG_PRINT == 1:
-                        print(f"Candle at {m_candle_time} is out of bounds.")
-                    self.captured_output = f"Candle at {m_candle_time} is out of bounds."
+                    self._print_debug(f"Mark on candle at {m_candle_time} is out of bounds.")
                     continue
                 else:
                     ellipse = patches.Ellipse((x, y), width=e_w, height=e_h, angle=0, color=color, fill=False)
@@ -201,12 +199,12 @@ class CaptureOnClick:
                 
         else:
             # print(f"File '{self.m_file}' does not exist. No points loaded.")
-            self.captured_output = f"File '{self.m_file}' does not exist. No points loaded."
-            if DEBUG_PRINT == 1:
-                print(self.captured_output)
+            self._print_debug(f"File '{self.m_file}' does not exist. No points loaded.")
+ 
 
     def _add_marks2plot(self):
-        if len(self.marks) > 0:
+        m_len = len(self.marks)
+        if m_len > 0:
             try:
                 for mark_entry in self.marks:
                     obj_cl = mark_entry[7]  
@@ -227,31 +225,36 @@ class CaptureOnClick:
                     
                     self.ax.add_patch(obj_cl)
             except IndexError:
-                pass  
-            # plt.draw()
+                self._print_debug(f'self.marks is empty!')
+        
+        return m_len
       
     def _redraw_marks(self):
-        # self.marks_resync_flag = True
-        self._clear_marks_from_plot()
-        #sync here?1?
-        self._add_marks2plot()
-        # plt.draw()
-   
+        # if not self._add_marks2plot():
+        self.load_and_plot_m_from_file()
+
+    def _print_debug(self, text):
+            """
+            Assigns the given text to self.captured_output and prints it if DEBUG_PRINT is 1.
+            
+            Parameters:
+            - text (str): The text to be assigned to self.captured_output and printed.
+            """
+            self.captured_output = text
+            if DEBUG_PRINT == 1:
+                print(self.captured_output)
+
     #update plot,  from refresher thread
-    def _t_update_plot(self):
+    def _t_update_plot(self, date):
+ 
+        if self.run_refresh_flag == True:
+            self.refresh_plot_data()
 
-        # if hasattr(self, 'ax'):
-            if self.f_marks_resync == True:
-                self._redraw_marks()
-                self.f_marks_resync = False
-                # plt.draw()
-
-            if self.f_new_plot_data== True:
-                self._redraw_plot()
-                self.f_new_plot_data== False
-
-            self._update_plot_text()
-            self.ax.figure.canvas.draw()
+        self._redraw_plot()
+        self._redraw_marks()
+        self._update_plot_text(date)
+        self.ax.figure.canvas.draw()
+        
                            
 
     def _replot_data_and_marks(self):
@@ -282,9 +285,7 @@ class CaptureOnClick:
             #draw new data, including new interval
             self.ax.clear()
             mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
-            self.load_and_plot_m_from_file()
             
-          
         elif self.pair_df.shape[0] == INTERVALS_ON_APPEND:
             #TODO: update only the last candle, not whole plot 
 
@@ -293,25 +294,15 @@ class CaptureOnClick:
             mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
             
             # line.set_xdata([updated_position])
-            print('update last line on a plot!!!')
+            self._print_debug('update last line on a plot!!!')
         else:
-            print('_redraw_plot: WTF?')
+            self._print_debug('_redraw_plot: WTF?')
             
-            #
 
-            
-     
-        # self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')        
-        # self.ax.figure.canvas.draw()
-        
-        # plt.draw()
-
-    def _update_plot_text(self):
-        self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')
+    def _update_plot_text(self, date):
+        self.ax.set_title(f'[Binance]:   {self.pair} | {self.interval} | {date}')
         self.tb_pair.set_val(self.pair)
         self.tb_interval.set_val(self.interval)
-
-
 
 
     #Plot interactions:
@@ -366,8 +357,7 @@ class CaptureOnClick:
         else:
             self.captured_output ="Clicked outside the axes"   
         
-        if DEBUG_PRINT == 1:
-            print(self.captured_output)
+        self._print_debug(self.captured_output)
 
     #handle UI events
     def on_pick(self, event):
@@ -377,15 +367,15 @@ class CaptureOnClick:
             #     print("Click event on plot axes")
             self.add_rmv_plot_mark(event)
         else:
-            self.captured_output += f' on_pick(): Figure clicked at: ({event.x},{event.y}) | '
+            # self.captured_output += f' on_pick(): Figure clicked at: ({event.x},{event.y}) | '
             if event.key is not None:
-                print(event)
+                self._print_debug(event)
 
 
     
-    def on_tb_pair_submit(self, text, event): 
-        # if event.name != 'button_release_event' and event.key != '\r':
-        if 0:
+    def on_tb_pair_submit(self, text): 
+        
+        if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
             return
 
         else:
@@ -395,7 +385,7 @@ class CaptureOnClick:
                 #TODO: make only one vline update now
                 self.f_new_plot_data= True
                 # self.f_marks_resync = False  
-                self._t_update_plot() 
+                self._t_update_plot(last_dta_time) 
             else:
                 self.pair = text #self.tb_pair.text
                 self.interval = self.tb_interval.text
@@ -403,62 +393,58 @@ class CaptureOnClick:
                 self.captured_output += f'Loaded up to: {last_dta_time}'
                 self.f_new_plot_data= True
                 # self.f_marks_resync = True  
-                self._t_update_plot() 
+                self._t_update_plot(last_dta_time) 
 
-            if DEBUG_PRINT == 1:
-                print(self.captured_output)
+            self._print_debug(self.captured_output)
     
-    def on_tb_interval_submit(self, text, event): 
-        # if event.name != 'button_release_event' and event.key != '\r':
-        if 0:
+    def on_tb_interval_submit(self, text): 
+        if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
             return
-        
-            #  text_box = TextBox(ax, label="Period:", initial="10")
-            #  if fig.canvas.manager.key_press_handler_id == text_box.submit_ctx.id:
-            # self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', initial=self.pair)
-        # if self.fig.canvas.manager.key_press_handler_id == self.tb_pair.submit_ctx.id: 
         else:  
             if text == self.interval:
                 self.interval = text #self.tb_pair.text
                 last_dta_time = pd.to_datetime(self.refresh_plot_data())
                 #TODO: make only one vline update now
-                self.captured_output = f'Reconfirmed interval: {self.interval}'
-                self.captured_output += f' Added up to: {last_dta_time}'
-                self.f_new_plot_data= False
-                # self.f_marks_resync = False  
-                self._t_update_plot() 
+                self.captured_output = f'Added data up to: {self.interval}'
+    
+                self._t_update_plot(last_dta_time) 
                 
             else:
                 #get both textboxes:
                 self.interval = text
                 self.pair = self.tb_pair.text
                 last_dta_time = pd.to_datetime(self.get_plot_data())
-                self.captured_output += f' | Loaded up to: {last_dta_time}'
-                self.f_new_plot_data= True
-                # self.f_marks_resync = True  
-                self._t_update_plot() 
-            if DEBUG_PRINT == 1:
-                print(self.captured_output )
+                self.captured_output += f'Loaded data up to: {last_dta_time}'
+
+                self._t_update_plot(last_dta_time) 
+
+            self._print_debug(f'Loaded on plot: {self.pair} at {self.interval} at {last_dta_time}')
  
     def on_get_data_button_click(self, event):
-        if event.name == 'button_release_event':
+        # if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
+        #     return        
+        if event.name == 'button_press_event':
+            self.interval = self.tb_interval.text
+            self.pair = self.tb_pair.text
             last_dta_time = pd.to_datetime(self.get_plot_data())
             self.captured_output = f'Loaded up to: {last_dta_time}' 
-            self.f_new_plot_data= True
+            # self.f_new_plot_data= True
             # self.f_marks_resync = True  
-            self._t_update_plot()  
-        if DEBUG_PRINT == 1:
-            print (self.captured_output)
+            self._t_update_plot(last_dta_time) 
+
+        self._print_debug(self.captured_output)
 
     def on_save_data_button_click(self, event):
-         if event.name == 'button_release_event':
+        # if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
+        #     return         
+        if event.name == 'button_release_event':
             self._save_m_to_file()
             self.captured_output = f'Saved marks data in: {self.m_file}'
      
-    def on_checkbox_clicked(self, label, event):
-        if event.key is None:
-            return
-        if event.name == 'button_release_event':
+    def on_checkbox_clicked(self, label):
+        # if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
+        #     return
+        # if self.event.name == 'button_release_event':
             if label == 'INT':
                 if self.checkbox.get_status()[0]:
                     self.captured_output += "Now interactive mode is ON. "
@@ -471,8 +457,10 @@ class CaptureOnClick:
                     self.captured_output += "Now interactive mode is OFF. "
 
 
+
     def _eucl_distance(self, p1, p2):
         return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
+    
     def _save_m_to_file(self):
         # Save marks to a CSV file
         df = pd.DataFrame(self.marks, columns=['Date', 'x', 'y', 'm_idx', 'ecl_w', 'ecl_h', 'buy', 'ellipse'])
@@ -503,9 +491,10 @@ class INTupdateThread(Thread):
     def run(self):
         try:
             while not self.stop_event.is_set():
-                if self.plotter.f_new_plot_data == True:
-                    self.plotter._t_update_plot()
-                sleep(0.1)
+                self.plotter._t_update_plot('tick')
+                sleep(0.5)
+                # self.plotter.refresh_plot_data()
+                
         except Exception as e:
             # Handle exceptions here or log them
             print(f"Thread Error: {e}")

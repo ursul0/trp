@@ -112,10 +112,8 @@ class DataProc:
 
     def get_new_data(self,  pair = SYMBOL, interval=DEF_INTERVAL, savedata = True):
         
-        if pair == SYMBOL:
-            pair = self.pair
-        if interval == DEF_INTERVAL:
-            interval = self.interval
+        self.pair = pair 
+        self.interval = interval 
         upd_time = self.data_map[pair][interval]['Updated']
         #screen size of data
         #check for .empty() 
@@ -182,10 +180,10 @@ class DataProc:
     def append_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
         #temp solution
         #TODO implement proper append mechanism
-        if pair == SYMBOL:
-            pair = self.pair
-        if interval == DEF_INTERVAL:
-            interval = self.interval
+        # if pair == SYMBOL:
+        pair = self.pair 
+        # if interval == DEF_INTERVAL:
+        interval = self.interval
 
         # candles = TOTAL_CANDLES
         cur_time = pd.Timestamp.now()
