@@ -26,8 +26,10 @@ INTERVALS = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h'
 INTERVALS_ON_APPEND = 1
 
 TOTAL_CANDLES = 100
+
 SYMBOL = 'BTCUSDT'
-DEF_INTERVAL ='1m'
+DEF_INTERVAL ='15m'
+
 DATA_REFRESH_RATE = 1 #data refresh in candles (one means we poll the candle historical data)
 
 class DataProc:
@@ -59,7 +61,7 @@ class DataProc:
         self.data_map = self._initialize_data_map()
 
 
-        self.pair_df = self.get_new_data(self.pair, self.interval)
+        self.pair_df = self.get_data(self.pair, self.interval)
 
 
     def _get_creds(self):
@@ -110,7 +112,7 @@ class DataProc:
                         
         return pair_df
 
-    def get_new_data(self,  pair = SYMBOL, interval=DEF_INTERVAL, savedata = True):
+    def get_data(self,  pair = SYMBOL, interval=DEF_INTERVAL, savedata = True):
         
         self.pair = pair 
         self.interval = interval 
@@ -143,6 +145,7 @@ class DataProc:
 
     def _self_append_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
         #NOT WORKING, JUST A COPY OF SOMETHING RELEVANT 
+        #  a new one self.get_upd_data()
 
 
         if pair == SYMBOL:
@@ -177,7 +180,7 @@ class DataProc:
         #  self.pair_df, self.pair, self.interval = self.data_proc._append_data() 
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], pair, interval        
 
-    def append_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
+    def get_upd_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
         #temp solution
         #TODO implement proper append mechanism
         # if pair == SYMBOL:
@@ -194,7 +197,7 @@ class DataProc:
         try:
             ex_start_time = self.data_map[pair][interval]['StartDate']
         except KeyError: 
-            return self.get_new_data(self,  pair, interval, True)
+            return self.get_data(self,  pair, interval, True)
         
         # if (upd_time - cur_time).total_seconds()/candle_t.total_seconds() > float(DATA_REFRESH_RATE/90):
         # self.data_map[pair][interval]['StartDate'] = self.pair_df_store[pair][interval].index[0]
@@ -208,7 +211,7 @@ class DataProc:
         cur_time = pd.Timestamp.now()
         new_dta_time = pair_df.index[-1]
 
-        print(f'appending existing data from {(ex_start_time)} up to {new_dta_time} updated at: {cur_time}')
+        # print(f'appending existing data from {(ex_start_time)} up to {new_dta_time} updated at: {cur_time}')
 
         # actually append, not replace
         # self.data_map[pair][interval]['StartDate'] = self.pair_df_store[pair][interval].index[0]

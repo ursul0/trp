@@ -19,7 +19,7 @@ import matplotlib.patches as patches
 from threading import Thread 
 import threading
 
-from data_proc import DataProc
+from data_proc import DataProc, SYMBOL, DEF_INTERVAL, SYMBOLS, INTERVALS
 
 #configure backend
 import matplotlib
@@ -31,8 +31,9 @@ import matplotlib
 
 #up to 2500?
 TOTAL_CANDLES = 100
-TPC = 100
-MARK_WIDTH = 1.5
+ACT_MARK_WIDTH = 1.7
+LBL_MARK_WIDTH = 3
+
 # SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
 # PERIODS = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M']
 
@@ -45,7 +46,7 @@ DEBUG_PRINT = 0
 class CaptureOnClick:
     """ interactive plot, chart marking data collector """
     def __init__(self, path = '.\\.data\\', pair_df=None, data_proc:DataProc = None, \
-                 symbol='BTCUSDT', interval='1m'):
+                 symbol=SYMBOL, interval=DEF_INTERVAL):
         # self.fig = mpf.figure(style='yahoo',figsize=(10,6))
         self.fig = mpf.figure(style='charles',figsize=(10,6))
         self.ax  = self.fig.add_subplot()   
@@ -84,10 +85,10 @@ class CaptureOnClick:
 
         
         #TODO: in case we want to update old marks a new interval on the same pair
-        self.f_marks_resync = False
+        # self.f_marks_resync = False
         # self.f_marks_redraw = False
 
-        self.run_refresh_flag = False
+        # self.run_refresh_flag = False
                
         # self.ax.set_ylabel('price')
         # self.ax.set_xlabel('time')
@@ -146,14 +147,14 @@ class CaptureOnClick:
         # self.ax.figure.show()
 
     def get_plot_data(self):   
-        pair_df, pair, interval = self.dp.get_new_data(self.pair, self.interval, False)
+        pair_df, pair, interval = self.dp.get_data(self.pair, self.interval, False)
         # sleep(0.01)
         self.pair_df = pair_df#.copy(deep=True)
 
         return pd.to_datetime(self.pair_df.index[-1]) 
     
     def refresh_plot_data(self):   
-        pair_df, pair, interval = self.dp.append_data(self.pair, self.interval)
+        pair_df, pair, interval = self.dp.get_upd_data(self.pair, self.interval)
         self.pair_df = pair_df    #.copy(deep=True) if we want to allocate a copy
         #returns datetime of the data tail entry (last candle data time)
         return pd.to_datetime(self.pair_df.index[-1])
@@ -202,7 +203,11 @@ class CaptureOnClick:
             self._print_debug(f"File '{self.m_file}' does not exist. No points loaded.")
  
 
-    def _add_marks2plot(self):
+    def _add_marks2plot(self, sync= None):
+
+        if sync != None:
+            print('adjust position and maeks size')
+
         m_len = len(self.marks)
         if m_len > 0:
             try:
@@ -231,7 +236,8 @@ class CaptureOnClick:
       
     def _redraw_marks(self):
         # if not self._add_marks2plot():
-        self.load_and_plot_m_from_file()
+        # self.load_and_plot_m_from_file()
+        self._add_marks2plot()
 
     def _print_debug(self, text):
             """
@@ -247,24 +253,23 @@ class CaptureOnClick:
     #update plot,  from refresher thread
     def _t_update_plot(self, date):
  
-        if self.run_refresh_flag == True:
-            self.refresh_plot_data()
+        # if self.run_refresh_flag == True:
+        #     self.refresh_plot_data()
 
-        self._redraw_plot()
-        self._redraw_marks()
-        self._update_plot_text(date)
+        self._redraw_plot() #add processing of the last candle + ticker? sepparate endpoint?
+        self._redraw_marks() #fix: to work wil local store. load marks only on start now?
+        self._update_plot_text(date) #kk for now
         self.ax.figure.canvas.draw()
         
                            
 
-    def _replot_data_and_marks(self):
-            self._redraw_plot()
-            self.ax.clear() 
-            mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
-            #resync and add marks
-            self.load_and_plot_m_from_file()
-        
+    # def _replot_data_and_marks(self):
+    #         self._redraw_plot()
+    #         self.ax.clear() 
+    #         #resync and add marks
+    #         self.load_and_plot_m_from_file()
 
+       
     def _draw_plot(self):
         
         # if self.f_new_plot_data != True: 
@@ -300,9 +305,38 @@ class CaptureOnClick:
             
 
     def _update_plot_text(self, date):
-        self.ax.set_title(f'[Binance]:   {self.pair} | {self.interval} | {date}')
+        # self.ax.set_title(f'[Binance]:   {self.pair} | {self.interval} | {date}')
+        utm = self.dp.data_map[self.pair][self.interval]['Updated']
+        self.ax.set_title(f' {self.pair} | {self.interval} | Last candle: {date} | Update time: {utm}')
         self.tb_pair.set_val(self.pair)
         self.tb_interval.set_val(self.interval)
+
+    def _draw_ellipse(self, x_coord, y_coord, color, kind):
+        ax_h_end = self.ax.get_ylim()[1]
+        ax_h_st = self.ax.get_ylim()[0]
+        ax_w = self.ax.get_xlim()[1] 
+        ax_h = ax_h_end - ax_h_st
+        h2w_factor = ax_h / ax_w  
+        if kind == 'ACT':
+            ecl_w = ACT_MARK_WIDTH
+            ecl_h = h2w_factor  * 10/8 #ratio
+        elif kind =='LBL':
+            ecl_w = LBL_MARK_WIDTH
+            ecl_h = h2w_factor  * 10/6*2
+        
+
+        self.captured_output = f"Data coords: ({x_coord}, {y_coord})"            
+        date_clicked = self.pair_df.index[round(x_coord)] 
+        m_candle_idx = self.pair_df.index.get_loc(date_clicked)
+ 
+        if kind == 'LBL':
+            ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
+        elif kind == 'ACT': 
+            ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, \
+                                  color=color, fill=True, facecolor=color)
+        buy = 1 if color == 'green' else 0
+        self.marks.append((date_clicked, x_coord, y_coord, m_candle_idx, ecl_w, ecl_h, buy, ellipse))
+        self.ax.add_patch(ellipse)
 
 
     #Plot interactions:
@@ -315,38 +349,40 @@ class CaptureOnClick:
             if x_coord is not None and y_coord is not None:
                 valid_x_range = self.pair_df.shape[0]
                 if 0<= x_coord < valid_x_range:
-                    if event.key == 'shift' and event.button == 1:
-                        # Shift + Left click: Remove the nearest ellipse on axes
+                    if event.key == 'alt' and event.button == 3:
+                        # ctrl + Left click: Remove the nearest ellipse on axes
                         if self.marks:
                             distances = [self._eucl_distance((x_coord, y_coord), (point[1], point[2])) for point in self.marks]
                             nearest_ellipse_index = distances.index(min(distances))
                             # Remove the corresponding patch 
                             _, _, _, _, _, _, _, ellipse_to_remove = self.marks.pop(nearest_ellipse_index)
                             ellipse_to_remove.remove()
+                            
                     elif event.button == 1 or event.button == 3:
-                        # Left or Right click: Draw an ellipse 
-                        ax_h_end = self.ax.get_ylim()[1]
-                        ax_h_st = self.ax.get_ylim()[0]
-                        ax_w = self.ax.get_xlim()[1] 
-                        ax_h = ax_h_end - ax_h_st
-                        h2w_factor = ax_h / ax_w  
-                        ecl_w = MARK_WIDTH
-                        ecl_h = h2w_factor  * 10/6 #ratio
-
-                        #capture the user input
-                        self.captured_output = f"Data coords: ({x_coord}, {y_coord})"            
-                        date_clicked = self.pair_df.index[round(x_coord)] 
-                        # self.captured_output += f' date clicked: {date_clicked} '
-                        # self.captured_output += f' figure coords: ({event.x}, {event.y})'
-                        
-                        #get current location, TODO some old func, review
-                        #add marks to self.marks & plot on axes
-                        m_candle_idx = self.pair_df.index.get_loc(date_clicked)
+                        ecl_w = 'ACT'
                         color = 'green' if event.button == 1 else 'red'
-                        ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
-                        buy = 1 if color == 'green' else 0
-                        self.marks.append((date_clicked, x_coord, y_coord, m_candle_idx, ecl_w, ecl_h, buy, ellipse))
-                        self.ax.add_patch(ellipse)
+
+                        if event.key == 'shift' and event.button == 1:
+                            ecl_w = 'LBL'
+                            color = 'green'
+                        if event.key == 'shift' and event.button == 3:
+                            ecl_w = 'LBL'
+                            color = 'red'
+                        if event.key == 'control' and event.button == 1:
+                            ecl_w = 'LBL'
+                            color = 'orange'
+                        if event.key == 'control' and event.button == 3:
+                            ecl_w = 'LBL'
+                            color = 'purple'
+                        # if event.key == 'alt' and event.button == 3:
+                        #     ecl_w = 'LBL'
+                        #     color = 'purple'
+                        # if event.key == 'alt' and event.button == 1:
+                        #     ecl_w = 'LBL'
+                        #     color = 'blue'
+                        
+
+                        self._draw_ellipse(x_coord, y_coord, color, ecl_w)
 
                     self.ax.figure.canvas.draw()
                 else:
@@ -423,13 +459,14 @@ class CaptureOnClick:
     def on_get_data_button_click(self, event):
         # if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
         #     return        
-        if event.name == 'button_press_event':
+        if event.name == 'button_release_event':
             self.interval = self.tb_interval.text
             self.pair = self.tb_pair.text
             last_dta_time = pd.to_datetime(self.get_plot_data())
             self.captured_output = f'Loaded up to: {last_dta_time}' 
             # self.f_new_plot_data= True
             # self.f_marks_resync = True  
+            # self._replot_data_and_marks()
             self._t_update_plot(last_dta_time) 
 
         self._print_debug(self.captured_output)
@@ -444,17 +481,17 @@ class CaptureOnClick:
     def on_checkbox_clicked(self, label):
         # if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
         #     return
-        # if self.event.name == 'button_release_event':
+        if self.event.name == 'button_release_event':
             if label == 'INT':
                 if self.checkbox.get_status()[0]:
-                    self.captured_output += "Now interactive mode is ON. "
+                    self.captured_output += "stick? current plot. "
                     self.RefreshThread.run()
-                    self.run_refresh_flag = True
+                    # self.run_refresh_flag = True
                 else:
                     # deselected: Stop the INTupdateThread when interactive mode is turned off
                     self.RefreshThread.stop()  
-                    self.run_refresh_flag = False
-                    self.captured_output += "Now interactive mode is OFF. "
+                    # self.run_refresh_flag = False
+                    self.captured_output = "dunno. "
 
 
 
@@ -482,6 +519,7 @@ class CaptureOnClick:
         return ecl_h,ecl_w
 
 
+#occasionally works, but not as expected, so of no use
 class INTupdateThread(Thread):
     def __init__(self, plotter):
         super(INTupdateThread, self).__init__()

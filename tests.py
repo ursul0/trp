@@ -1,14 +1,15 @@
 
-from data_proc import DataProc
+from data_proc import DataProc, SYMBOL, DEF_INTERVAL, SYMBOLS, INTERVALS
 from capture_plot import CaptureOnClick
 import pandas as pd
 from time import sleep
+
 # from datetime import datetime, timedelta
-# import os
-SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
-TOTAL_CANDLES = 100
-SYMBOL = 'BTCUSDT'
-INTERVAL ='1m'
+
+# SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT', 'AVAXUSDT']
+# TOTAL_CANDLES = 100
+# SYMBOL = 'BTCUSDT'
+# DEF_INTERVAL ='15m'
 
 #======================================================
 
@@ -80,8 +81,7 @@ merged_df = pd.merge_asof(target_df, source_df, on='Timestamp', direction='neare
 
 # Assuming you want to perform an operation (e.g., addition) on the matched entries
 merged_df['Result'] = merged_df['Value_Target'] + merged_df['Value_Source']
-
-
-
-
 '''
+
+
+
