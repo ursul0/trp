@@ -6,7 +6,8 @@ from time import sleep
 
 
 # 18-Dec-2023:
-#TODO move marks to df
+#TODO move marks to df = DONE
+#TODO implement save marks removes marks!!! = DONE
 
 #TODO: make space for the future
 
@@ -14,7 +15,7 @@ from time import sleep
 #TODO: lines
 
 #TODO add custom interval from UI + selection/mechanism to set different TOTAL_CANDLES
-#TODO implement save marks removes marks!!!
+
 #TODO review marks resync(store) mechanism (file vs local store/define on_interval_change functionality)
 #TODO add sessions (/trades) + auto populate
 #TODO check of on _refresh more then 1 is needed
@@ -40,7 +41,9 @@ def main():
     # print("Done!")
 
     # Save points to file
-    # plotter.save_m_to_file()
+    # plotter._save_m_to_file()
+    del plotter
+    del dp
 
 if __name__ == "__main__":
     main()

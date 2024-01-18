@@ -125,8 +125,8 @@ class DataProc:
             pair_df = self._get_historic_data_BNNC(symbol=pair, timestamp=target_start_time, interval=interval)
             cur_time = pd.Timestamp.now()
             #TODO consiger removing file operation from here!
-            if savedata == True:
-                pair_df.to_csv(self.file)
+            # if savedata == True:
+            #     pair_df.to_csv(self.file)
             
             self.pair_df_store[pair][interval] = pair_df
             self.data_map[pair][interval]['StartDate'] = self.pair_df_store[pair][interval].index[0]
@@ -339,7 +339,8 @@ class DataProc:
 
         current_date = current_date.strftime('-%Y-%m-%d')
 
-        file = pair+'-'+interval+current_date+'.csv'
+        # file = pair+'-'+interval+current_date+'.csv'
+        file = pair+'-'+interval+current_date+'.pkl'
         m_file = 'm'+file
 
         file = path+file
