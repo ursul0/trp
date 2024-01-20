@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 
+import matplotlib.ticker as ticker
+
 import pandas as pd
 import numpy as np
 from pandas import Timestamp
@@ -54,9 +56,22 @@ class CaptureOnClick:
         # self.fig = mpf.figure(style='yahoo',figsize=(10,6))
         self.fig = mpf.figure(style='charles',figsize=(10,6))
         self.ax  = self.fig.add_subplot()   
+
+        # self.ax.yaxis.set_major_formatter('${x:,.2f}')
+        # self.ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=False))
+        # self.ax.yaxis.get_major_formatter().set_scientific(False)
+
+        # Change the y-axis formatter to plain numbers
+        # formatter = ticker.ScalarFormatter(useMathText=False)
+        # formatter.set_scientific(False)
+        # self.ax.yaxis.set_major_formatter(formatter)
+        # plt.rcParams['axes.formatter.limits'] = (-100000, 100000)
+        
         # self.fig, (self.ax, self.ui_ax) = plt.subplots(2, 1, figsize=(10, 8),\
         #  gridspec_kw={'height_ratios': [4, 1]})
         # fig, ax = plt.subplots(figsize=(10, 6))
+
+        
      
         self.path = path
         self.pair = symbol
@@ -166,13 +181,14 @@ class CaptureOnClick:
     def _create_marks_store(self):
             marks_store = {}
             for pair in SYMBOLS: 
-                marks_store[pair] = pd.DataFrame(columns=['date', 'price', 'x', 'y', 'kind', 'color', 'obj'])
+                # marks_store[pair] = pd.DataFrame(columns=['date', 'price', 'x', 'y', 'kind', 'color', 'obj'])
+                marks_store[pair] = pd.DataFrame(columns=['date', 'price', 'x',  'kind', 'color', 'obj'])
                
             return marks_store
 
     def _add_marks2plot(self, sync= None):
 
-        index = -1    
+        # index = -1    
         df = self.marks_n
         if not df.empty:
             try:
@@ -188,17 +204,23 @@ class CaptureOnClick:
                         dfp = self.pair_df
                         nearest_timestamp = dfp.index.asof(date)
                         if pd.isna(nearest_timestamp):
-                            self.captured_output = f'mark at {date} is outside of the axes'
+                            self.captured_output = f'mark at {date} is outside of the axes data'
                             self._print_debug(self.captured_output)
                             continue
-                        else:
-                            x_coord = dfp.index.get_loc(nearest_timestamp)
-                            self.captured_output = f'date: {date}, x_coord: {x_coord}'
+
+                        # x_coord = dfp.index.get_loc(nearest_timestamp)
+                        
+                        # Find the next occurrence where 'Low' is lower or equal to the 'price'
+                        # in case we moved from larger to smaller period and need to find the correct candle
+                        next_occurrence = dfp[(dfp.index >= nearest_timestamp) & (dfp['Low'] <= price) & (dfp['High'] >= price)].iloc[0]
+                        x_coord = dfp.index.get_loc(next_occurrence.name) #.name returns associated index label
+                        self.captured_output = f'date: {date}, x_coord: {x_coord}'
+    
                         
                         obj_cl = self._draw_ellipse(x_coord, price, color, kind)
                         
                         df.at[index, 'x'] = x_coord
-                        df.at[index, 'y'] = price
+                        # df.at[index, 'price'] = price
                         df.at[index, 'obj'] = obj_cl
 
                     else:    
@@ -210,7 +232,7 @@ class CaptureOnClick:
             except IndexError:
                 self._print_debug(f'self.marks_n is empty!')
         
-        return index
+        # return index
       
 
     def _print_debug(self, text):
@@ -273,48 +295,6 @@ class CaptureOnClick:
         self.tb_pair.set_val(self.pair)
         self.tb_interval.set_val(self.interval)
 
-
-
-    # def _add_new_elipse(self, date, x_coord, y_coord, color, kind, fill = False):
-    #     ax_h_end = self.ax.get_ylim()[1]
-    #     ax_h_st = self.ax.get_ylim()[0]
-    #     ax_w = self.ax.get_xlim()[1] 
-    #     ax_h = ax_h_end - ax_h_st
-    #     h2w_factor = ax_h / ax_w  
-
-    #     # if kind['shape'] = 'ellipse':  ?????
-
-    #     #TODO process date and fill in the marks :
-    #     # self.marks_n = pd.DataFrame(['date','x','y','kind','obj'])
-
-    #     if kind == 'ACT':
-    #         ecl_w = ACT_MARK_WIDTH
-    #         ecl_h = h2w_factor  * 10/8 #ratio
-    #     elif kind =='LBL':
-    #         ecl_w = LBL_MARK_WIDTH
-    #         ecl_h = h2w_factor  * 10/6*2
-        
-
-    #     self.captured_output = f"Data coords: ({x_coord}, {y_coord})"            
-    #     date_clicked = self.pair_df.index[round(x_coord)] 
-    #     m_candle_idx = self.pair_df.index.get_loc(date_clicked)
-
-    #     # Create an Ellipse patch with transparency
-    #     # ellipse = patches.Ellipse(center, width, height, angle=angle, edgecolor='black', facecolor='blue', alpha=alpha)
-
-
-    #     if kind == 'LBL':
-    #         ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=fill)
-    #     elif kind == 'ACT': 
-    #         ellipse = patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, \
-    #                                 color=color, fill=fill)
-    #     # buy = 1 if color == 'green' else 0
-    #     # self.marks.append((date_clicked, x_coord, y_coord, m_candle_idx, ecl_w, ecl_h, buy, ellipse))
-    #     self.marks.append((date_clicked, x_coord, y_coord, m_candle_idx, ecl_w, ecl_h, kind, ellipse))
-    #     self.ax.add_patch(ellipse)
-
-
-
     def _draw_ellipse(self, x_coord, y_coord, color, kind, fill = False):
         ax_h_end = self.ax.get_ylim()[1]
         ax_h_st = self.ax.get_ylim()[0]
@@ -366,16 +346,17 @@ class CaptureOnClick:
                         # alt +right click: Remove the nearest mark on axes
                         if not self.marks_n.empty:
                             # Find target mark index
-                            # Calculate Euclidean distances 
-                            max_x_diff = self.marks_n['x'].max() - self.marks_n['x'].min()
-                            max_y_diff = self.marks_n['y'].max() - self.marks_n['y'].min()
-                            if max_x_diff == 0 or max_y_diff == 0: # single mark to remove
-                                target_mark_index = 0
-                            else:
-                                normalized_distances = (((self.marks_n['x'] - event.x) / max_x_diff) ** 2 +
-                                                    ((self.marks_n['y'] - event.y) / max_y_diff) ** 2) ** 0.5
+                            if len(self.marks_n) > 1:
+                                # Calculate Euclidean distances 
+                                max_x_diff = self.marks_n['x'].max() - self.marks_n['x'].min()
+                                max_y_diff = self.marks_n['price'].max() - self.marks_n['price'].min()
+             
+                                normalized_distances = (((self.marks_n['x'] - x_coord) / max_x_diff) ** 2 + \
+                                                        ((self.marks_n['price'] - price) / max_y_diff) ** 2) ** 0.5
                                 # Find target mark index
                                 target_mark_index = normalized_distances.idxmin()
+                            else:
+                                target_mark_index = self.marks_n.index[0]
 
                             # Get the mark to remove
                             row_data = self.marks_n.loc[target_mark_index]
@@ -405,15 +386,14 @@ class CaptureOnClick:
                         df = self.marks_n                        
                         obj = self._draw_ellipse(x_coord, y_coord, color, kind)
 
-                        # self.marks_n = pd.DataFrame(columns=['date', 'price', 'x', 'y', 'kind', 'color', 'obj'])
-                        new_row = {'date': date, 'price': price, 'x': event.x, 'y': event.y, \
+                        # self.marks_n = pd.DataFrame(columns=['date', 'price', 'x', 'kind', 'color', 'obj'])
+                        new_row = {'date': date, 'price': price, 'x': x_coord, \
                                    'kind': kind, 'color' : color, 'obj': obj}
                         #add new mark:
                         self.marks_n = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
                         #update marks store    
                         self.marks_store[self.pair] = self.marks_n
                         
-
                         # df.loc[date] = new_row
                
                     self.ax.figure.canvas.draw()
@@ -505,7 +485,7 @@ class CaptureOnClick:
             if text == self.pair:
                 last_dta_time = pd.to_datetime(self.refresh_plot_data())
                 self.captured_output += f'Added up to: {last_dta_time}'
-                #TODO: make only one vline update now
+                #TODO: make only one vline update now?
                 self.f_new_plot_data= True
                 self.f_marks_resync = False  
                 self._t_update_plot(last_dta_time) 
@@ -560,8 +540,7 @@ class CaptureOnClick:
             last_dta_time = pd.to_datetime(self.get_plot_data())
             self.captured_output = f'Loaded up to: {last_dta_time}' 
             # self.f_new_plot_data= True
-            # self.f_marks_resync = True  
-            # self._replot_data_and_marks()
+            self.f_marks_resync = True  
             #maybe pair changed, set proper marks store 
             self.marks_n = self.marks_store[self.pair]
             self._t_update_plot(last_dta_time) 
@@ -608,7 +587,6 @@ class CaptureOnClick:
 
     def _save_m_to_file(self):
 
-        # marks_store_without_obj = {pair: df.drop(columns=['obj']) for pair, df in self.marks_store.items()}
         marks_store_copy = self.marks_store.copy()
         for pair in self.marks_store:
             marks_store_copy[pair]['obj'] = None
@@ -619,20 +597,6 @@ class CaptureOnClick:
             pickle.dump(marks_store_copy, file)
 
         self.captured_output = f'Saved marks into: {self.m_file}'
-
-    # def _get_mark_cfg(self):
-    #     #TODO finish the helper func
-    #     # patches.Ellipse((x_coord, y_coord), width=ecl_w, height=ecl_h, angle=0, color=color, fill=False)
-
-    #     ax_h_end = self.ax.get_ylim()[1]
-    #     ax_h_st = self.ax.get_ylim()[0]
-    #     ax_w = self.ax.get_xlim()[1] 
-    #     ax_h = ax_h_end - ax_h_st
-    #     h2w_factor = ax_h / ax_w  
-    #     ecl_w = MARK_WIDTH
-    #     ecl_h = h2w_factor  * 10/6 #ratio
-
-    #     return ecl_h,ecl_w
 
 
 #occasionally works, but not as expected, so of no use
