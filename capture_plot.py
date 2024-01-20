@@ -390,7 +390,11 @@ class CaptureOnClick:
                         new_row = {'date': date, 'price': price, 'x': x_coord, \
                                    'kind': kind, 'color' : color, 'obj': obj}
                         #add new mark:
-                        self.marks_n = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+                        # self.marks_n = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+                        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True).dropna(how='all', axis=1)
+                        self.marks_n = df.reset_index(drop=True)
+
                         #update marks store    
                         self.marks_store[self.pair] = self.marks_n
                         
