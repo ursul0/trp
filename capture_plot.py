@@ -25,7 +25,7 @@ import matplotlib.patches as patches
 from threading import Thread 
 import threading
 
-from data_proc import DataProc, SYMBOL, DEF_INTERVAL, TOTAL_CANDLES, SYMBOLS
+from data_proc import DataProc, DEF_SYMBOL, DEF_INTERVAL, TOTAL_CANDLES, SYMBOLS
 
 #configure backend
 import matplotlib
@@ -52,7 +52,7 @@ DEBUG_PRINT = 0
 class CaptureOnClick:
     """ interactive plot, chart marking data collector """
     def __init__(self, path = '.\\.data\\', pair_df=None, data_proc:DataProc = None, \
-                 symbol=SYMBOL, interval=DEF_INTERVAL):
+                 symbol=DEF_SYMBOL, interval=DEF_INTERVAL):
         # self.fig = mpf.figure(style='yahoo',figsize=(10,6))
         self.fig = mpf.figure(style='charles',figsize=(10,6))
         self.ax  = self.fig.add_subplot()   
@@ -153,7 +153,7 @@ class CaptureOnClick:
         else:
             self.marks_store = marks
 
-        self.marks_n = self.marks_store[SYMBOL]
+        self.marks_n = self.marks_store[DEF_SYMBOL]
 
         self._add_marks2plot(sync=True)
         self._update_plot_text(date)
@@ -163,7 +163,7 @@ class CaptureOnClick:
   
 
     def get_plot_data(self):   
-        pair_df, pair, interval = self.dp.get_data(self.pair, self.interval, False)
+        pair_df, pair, interval = self.dp.get_data(self.pair, self.interval, refresh = True, savedata = False)
         # sleep(0.01)
         self.pair_df = pair_df#.copy(deep=True)
 
@@ -410,61 +410,6 @@ class CaptureOnClick:
             self.captured_output ="Clicked outside the axes"   
         
         self._print_debug(self.captured_output)
-
-    # def add_rmv_plot_mark(self, event):
-    #     if event.inaxes == self.ax:
-    #         #get data coordinates:
-    #         x_coord = event.xdata
-    #         y_coord = event.ydata
-    #         #figure? coordinates : event.x, event.y
-    #         if x_coord is not None and y_coord is not None:
-    #             valid_x_range = self.pair_df.shape[0]
-    #             if 0<= x_coord < valid_x_range:
-    #                 if event.key == 'alt' and event.button == 3:
-    #                     # ctrl + Left click: Remove the nearest ellipse on axes
-    #                     if self.marks:
-    #                         distances = [self._eucl_distance((x_coord, y_coord), (point[1], point[2])) for point in self.marks]
-    #                         nearest_ellipse_index = distances.index(min(distances))
-    #                         # Remove the corresponding patch 
-    #                         _, _, _, _, _, _, _, ellipse_to_remove = self.marks.pop(nearest_ellipse_index)
-    #                         ellipse_to_remove.remove()
-                            
-    #                 elif event.button == 1 or event.button == 3:
-    #                     ecl_w = 'ACT'
-    #                     color = 'green' if event.button == 1 else 'red'
-
-    #                     if event.key == 'shift' and event.button == 1:
-    #                         ecl_w = 'LBL'
-    #                         color = 'green'
-    #                     if event.key == 'shift' and event.button == 3:
-    #                         ecl_w = 'LBL'
-    #                         color = 'red'
-    #                     if event.key == 'control' and event.button == 1:
-    #                         ecl_w = 'LBL'
-    #                         color = 'orange'
-    #                     if event.key == 'control' and event.button == 3:
-    #                         ecl_w = 'LBL'
-    #                         color = 'purple'
-    #                     # if event.key == 'alt' and event.button == 3:
-    #                     #     ecl_w = 'LBL'
-    #                     #     color = 'purple'
-    #                     # if event.key == 'alt' and event.button == 1:
-    #                     #     ecl_w = 'LBL'
-    #                     #     color = 'blue'
-                        
-
-    #                     self._draw_ellipse(x_coord, y_coord, color, ecl_w)
-
-    #                 self.ax.figure.canvas.draw()
-    #             else:
-    #                 self.captured_output ="Clicked outside the valid range of indices"
-    #         else:
-    #             self.captured_output ="Invalid click coordinates"
-    #     # Click occurred outside the axes
-    #     else:
-    #         self.captured_output ="Clicked outside the axes"   
-        
-    #     self._print_debug(self.captured_output)
 
     #handle UI events
     def on_pick(self, event):

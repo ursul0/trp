@@ -27,7 +27,7 @@ INTERVALS_ON_APPEND = 1
 
 TOTAL_CANDLES = 100
 
-SYMBOL = 'BTCUSDT'
+DEF_SYMBOL = 'BTCUSDT'
 DEF_INTERVAL ='15m'
 
 DATA_REFRESH_RATE = 1 #data refresh in candles (one means we poll the candle historical data)
@@ -39,7 +39,7 @@ class DataProc:
         uses TOTAL_CANDLES as "fixed screen size"
 
     """
-    def __init__(self, path = '.\\.data\\', pair = SYMBOL, interval = DEF_INTERVAL, candles = TOTAL_CANDLES):
+    def __init__(self, path = '.\\.data\\', pair = DEF_SYMBOL, interval = DEF_INTERVAL, candles = TOTAL_CANDLES):
         self.bnc_key, self.bnc_sec = self._get_creds()
         self.client = Client(self.bnc_key, self.bnc_sec)
 
@@ -112,14 +112,14 @@ class DataProc:
                         
         return pair_df
 
-    def get_data(self,  pair = SYMBOL, interval=DEF_INTERVAL, savedata = True):
+    def get_data(self,  pair = DEF_SYMBOL, interval=DEF_INTERVAL, refresh = False, savedata = True):
         
         self.pair = pair 
         self.interval = interval 
         upd_time = self.data_map[pair][interval]['Updated']
         #screen size of data
         #check for .empty() 
-        if upd_time == None: #fresh data is needed 
+        if upd_time == None or refresh == True: #fresh data is needed 
 
             target_start_time,_ = self._calculate_data_span(TOTAL_CANDLES, interval)
             pair_df = self._get_historic_data_BNNC(symbol=pair, timestamp=target_start_time, interval=interval)
@@ -143,12 +143,12 @@ class DataProc:
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], self.pair, self.interval 
         
 
-    def _self_append_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
+    def _self_append_data(self,  pair = DEF_SYMBOL, interval=DEF_INTERVAL):
         #NOT WORKING, JUST A COPY OF SOMETHING RELEVANT 
         #  a new one self.get_upd_data()
 
 
-        if pair == SYMBOL:
+        if pair == DEF_SYMBOL:
             pair = self.pair
         if interval == DEF_INTERVAL:
             interval = self.interval
@@ -180,10 +180,10 @@ class DataProc:
         #  self.pair_df, self.pair, self.interval = self.data_proc._append_data() 
         return self.pair_df_store[pair][interval].iloc[-TOTAL_CANDLES:], pair, interval        
 
-    def get_upd_data(self,  pair = SYMBOL, interval=DEF_INTERVAL):
+    def get_upd_data(self,  pair = DEF_SYMBOL, interval=DEF_INTERVAL):
         #temp solution
         #TODO implement proper append mechanism
-        # if pair == SYMBOL:
+        # if pair == DEF_SYMBOL:
         pair = self.pair 
         # if interval == DEF_INTERVAL:
         interval = self.interval

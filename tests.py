@@ -1,5 +1,5 @@
 
-from data_proc import DataProc, SYMBOL, DEF_INTERVAL, SYMBOLS, INTERVALS
+from data_proc import DataProc, DEF_SYMBOL, DEF_INTERVAL, SYMBOLS, INTERVALS
 from capture_plot import CaptureOnClick
 import pandas as pd
 from time import sleep
@@ -49,25 +49,10 @@ if __name__ == "__main__":
     main()
 
 
-# plotter = CaptureOnClick()
 
 
 
 
-
-
-
-
-
-
-#======================================================
-'''# Perform operation on a single entry in the target DataFrame
-target_timestamp = pd.to_datetime('2022-01-01 14:15:00')  # Replace with your specific timestamp
-merged_df = pd.merge_asof(target_df, source_df, on='Timestamp', direction='nearest')
-
-# Assuming you want to perform an operation (e.g., addition) on the matched entries
-merged_df['Result'] = merged_df['Value_Target'] + merged_df['Value_Source']
-'''
 
 
 
