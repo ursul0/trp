@@ -1,7 +1,11 @@
 import matplotlib.pyplot as plt
 import mplfinance as mpf
 
-import matplotlib.ticker as ticker
+# import mplcursors
+# import matplotlib.ticker as ticker
+
+from matplotlib.widgets import MultiCursor
+import matplotlib.gridspec as gridspec
 
 import pandas as pd
 import numpy as np
@@ -54,25 +58,33 @@ class CaptureOnClick:
     def __init__(self, path = '.\\.data\\', pair_df=None, data_proc:DataProc = None, \
                  symbol=DEF_SYMBOL, interval=DEF_INTERVAL):
         # self.fig = mpf.figure(style='yahoo',figsize=(10,6))
-        self.fig = mpf.figure(style='charles',figsize=(10,6))
-        self.ax  = self.fig.add_subplot()   
 
-        # self.ax.yaxis.set_major_formatter('${x:,.2f}')
-        # self.ax.yaxis.set_major_formatter(ticker.ScalarFormatter(useMathText=False))
-        # self.ax.yaxis.get_major_formatter().set_scientific(False)
+        # no volume plot:
+        # self.fig = mpf.figure(style='charles',figsize=(10,6))
+        # self.ax  = self.fig.add_subplot()
+        # add volume
+        # self.volume_ax = self.fig.add_subplot()
+        # self.ax.label_outer()
+        # self.fig.subplots_adjust(hspace=0)
 
-        # Change the y-axis formatter to plain numbers
-        # formatter = ticker.ScalarFormatter(useMathText=False)
-        # formatter.set_scientific(False)
-        # self.ax.yaxis.set_major_formatter(formatter)
-        # plt.rcParams['axes.formatter.limits'] = (-100000, 100000)
+
+        # self.fig, (self.ax, self.volume_ax) = plt.subplots(
+        #                               nrows=2, 
+        #                               ncols=1, 
+        #                               figsize=(10, 6),
+        #                               gridspec_kw={'height_ratios': [5, 1]})
+         
+        # self.ax.label_outer()
+        # self.fig.subplots_adjust(hspace=0)
+
+        # Adjust the position of the axes to leave space for the textboxes and the legend
+        # pos :             [left, bottom, width, height] 
+        # old single: self.ax.set_position([0.03, 0.22, 0.88, 0.73])
+        #external axes custom config:
+        # vol_h = 0.1
+        # self.ax.set_position([0.03, 0.22+vol_h, 0.88, 0.73-vol_h])
+        # self.volume_ax.set_position([0.03, 0.22, 0.88, vol_h]) 
         
-        # self.fig, (self.ax, self.ui_ax) = plt.subplots(2, 1, figsize=(10, 8),\
-        #  gridspec_kw={'height_ratios': [4, 1]})
-        # fig, ax = plt.subplots(figsize=(10, 6))
-
-        
-     
         self.path = path
         self.pair = symbol
         self.interval = interval
@@ -92,15 +104,54 @@ class CaptureOnClick:
         #debug print
         self.captured_output = ''
         
-        #initialize 
-        self.f_new_plot_data = False
-        # self.RefreshThread = INTupdateThread(plotter = self)
-
-               
-        # self.run_refresh_flag = False
-               
         # self.ax.set_ylabel('price')
         # self.ax.set_xlabel('time')
+
+        #draw plot & marks
+        date = self.get_plot_data()
+        # self._draw_plot()
+
+        # self.fig, self.axes = mpf.plot(self.pair_df, type='candle', style='charles',
+        #         ylabel='Price',
+        #         ylabel_lower='Volume',
+        #         volume=True,
+        #         figratio=(10,6),
+        #         figscale=1.25,
+        #         returnfig=True, xrotation=0)
+        
+        self.fig, self.axes = mpf.plot(self.pair_df, type='candle', style='charles',
+                volume=True,
+                figratio=(10,6),
+                figscale=1.25,
+                returnfig=True, xrotation=0)
+        
+        # Adjust the layout for tight plotting
+        # plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, wspace=0, hspace=0)
+        
+ 
+        # get the axes:
+        self.ax = self.axes[0]
+        self.volume_ax = self.axes[2]
+
+        self.ax.set_ylabel('Price')
+        self.volume_ax.set_ylabel('Volume')
+
+        self.fig.tight_layout()
+        self.fig.subplots_adjust(hspace=0)
+
+
+        # ap = mpf.make_addplot(self.pair_df['Close'],panel=1,type='line',ylabel='Line',mav=(5,10))
+        # mpf.plot(self.pair_df,mav=10,type='candle',ylabel='Candle',addplot=ap,panel_ratios=(1,1),figratio=(1,1),figscale=1.5)
+
+        # Set the spacing between subplots to zero and adjust the layout for tight plotting
+        # plt.subplots_adjust(left=0.02, bottom=0.22, right=0.98, top=0.96, wspace=0, hspace=0)
+        # self.fig.tight_layout()
+
+        # self.fig.subplots_adjust(hspace=0)
+        # # plt.subplots_adjust(bottom=0.25)
+        # # self.fig.subplots_adjust(left=0.01, right=0.99) 
+  
+
 
               
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_pick)
@@ -108,14 +159,11 @@ class CaptureOnClick:
         #     # Disconnect the callback using the connection id
         #     self.fig.canvas.mpl_disconnect(self.cid)
 
-        # Add textboxes below the axes
-        # Adjust the position of the axes to leave space for the textboxes
-        # pos :             [left, bottom, width, height] 
-        self.ax.set_position([0.03, 0.22, 0.88, 0.73])
-      
+           
         # Add textboxes below the axes
         textbox_pair_pos = [0.15, 0.015, 0.12, 0.05]
         textbox_interval_pos = [0.4, 0.015, 0.05, 0.05]
+
         self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', \
                                initial=self.pair)
         self.tb_interval = TextBox(plt.gcf().add_axes(textbox_interval_pos), 'Period:', \
@@ -135,16 +183,12 @@ class CaptureOnClick:
         self.save_data_btn = Button(plt.gcf().add_axes(button_pos), 'Save Marks')
         self.save_data_btn.on_clicked(self.on_save_data_button_click)
  
-        # Create CheckButtons widget
-        self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
-        self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
-        self.checkbox.on_clicked(self.on_checkbox_clicked)
+        # # Create CheckButtons widget
+        # self.checkbox_ax = plt.axes([0.88, 0.01, 0.1, 0.05])  #  position and size
+        # self.checkbox = CheckButtons(self.checkbox_ax, labels=['INT'], actives=[False])
+        # self.checkbox.on_clicked(self.on_checkbox_clicked)
 
         self.event = None
-
-        #draw plot & marks
-        date = self.get_plot_data()
-        self._draw_plot()
 
         # Marks:
         marks = self._load_m_from_file()
@@ -158,8 +202,14 @@ class CaptureOnClick:
         self._add_marks2plot(sync=True)
         self._update_plot_text(date)
 
+        # Add a crosshair
+        # multi = MultiCursor(self.fig.canvas, (self.ax,), color='r', lw=1)
+        multi = MultiCursor(self.fig.canvas, (self.ax,), color='grey', lw=0.5, horizOn=True, vertOn=True)
+
+
         # plt.ioff()
-        plt.show()
+        # plt.show()
+        mpf.show()
   
 
     def get_plot_data(self):   
@@ -225,7 +275,8 @@ class CaptureOnClick:
 
                     else:    
                         obj_cl = row['obj'] 
-                        self.ax.add_patch(obj_cl) 
+                        if obj_cl is not None:
+                            self.ax.add_patch(obj_cl) 
 
                     
         
@@ -262,10 +313,19 @@ class CaptureOnClick:
         self._update_plot_text(date) #kk for now
         self.ax.figure.canvas.draw()
       
-    def _draw_plot(self):
-        mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
-        self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')
-        self.ax.figure.canvas.draw()
+    # def _draw_plot(self):
+    #     #old, no volume:
+    #     # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
+    #     # self.ax.figure.canvas.draw()
+
+    #     # self.ax.set_title(f'Interactive chart of {self.pair} {self.interval}')
+
+    #     # mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, ax=self.ax)
+    #     # mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, ax=self.ax, warn_too_much_data=2500)
+
+    #     mpf.plot(self.pair_df,type='candle',style='charles',volume=True,figratio=(15,10))
+  
+    #     self.ax.figure.canvas.draw()
             
     def _redraw_plot(self):
         #TODO reveiew and rewrite
@@ -273,18 +333,48 @@ class CaptureOnClick:
         
         # no check if empty(why would it be?) and has last candle only
         if self.pair_df.shape[0] == TOTAL_CANDLES:
-            #draw new data, including new interval
+            # #draw new data, including new interval
             self.ax.clear()
-            mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
+            self.volume_ax.clear()
+
+            # # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
+            # mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, \
+            #           ax=self.ax, warn_too_much_data=2500, xrotation=0)
+  
+            # Update the plot with the new data
+            mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, \
+                     ax=self.ax, warn_too_much_data=2500, xrotation=0)
+            
+            self.ax.set_ylabel('Price')
+            self.volume_ax.set_ylabel('Volume')
+            
+            # Redraw the figure
+            self.fig.canvas.draw()
+
             
         elif self.pair_df.shape[0] == INTERVALS_ON_APPEND:
             #TODO: update only the last candle, not whole plot 
-
             #update last v-line/candle on a plot
-            mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
+
+            self.ax.clear()
+            self.volume_ax.clear()
             
+            # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
+
+            # mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, \
+            #          ax=self.ax, warn_too_much_data=2500, xrotation=0)
+            
+            updated_data = self.pair_df.iloc[-INTERVALS_ON_APPEND:]
+            self.ax.plot(updated_data.index, updated_data['Close'], label='Close')
+
+
+            self.ax.set_ylabel('Price')
+            self.volume_ax.set_ylabel('Volume')
+
+            # Redraw the figure
+            self.fig.canvas.draw()
             # line.set_xdata([updated_position])
-            self._print_debug('update last line on a plot!!!')
+            self._print_debug('TODO: update last line on a plot!')
         else:
             self._print_debug('_redraw_plot: WTF?')
        
@@ -504,25 +594,23 @@ class CaptureOnClick:
             self.captured_output = f'Saved marks data in: {self.m_file}'
             
      
-    def on_checkbox_clicked(self, label):
-        # if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
-        #     return
-        if self.event.name == 'button_release_event':
-            if label == 'INT':
-                if self.checkbox.get_status()[0]:
-                    self.captured_output += "stick? current plot/session. "
-                    self.RefreshThread.run()
-                    # self.run_refresh_flag = True
-                else:
-                    # deselected: Stop the INTupdateThread when interactive mode is turned off
-                    self.RefreshThread.stop()  
-                    # self.run_refresh_flag = False
-                    self.captured_output = "dunno. "
+    # def on_checkbox_clicked(self, label):
+    #     # if self.event.name != 'button_press_event' and self.event.button != '<MouseButton.LEFT: 1>':
+    #     #     return
+    #     if self.event.name == 'button_release_event':
+    #         if label == 'INT':
+    #             if self.checkbox.get_status()[0]:
+    #                 self.captured_output += "stick? current plot/session. "
+    #                 self.RefreshThread.run()
+    #                 # self.run_refresh_flag = True
+    #             else:
+    #                 # deselected: Stop the INTupdateThread when interactive mode is turned off
+    #                 self.RefreshThread.stop()  
+    #                 # self.run_refresh_flag = False
+    #                 self.captured_output = "dunno. "
 
-
-
-    def _eucl_distance(self, p1, p2):
-        return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
+    # def _eucl_distance(self, p1, p2):
+    #     return ((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)**0.5
     
     def _load_m_from_file(self):
         marks_store = -1
@@ -548,27 +636,5 @@ class CaptureOnClick:
         self.captured_output = f'Saved marks into: {self.m_file}'
 
 
-#occasionally works, but not as expected, so of no use
-class INTupdateThread(Thread):
-    def __init__(self, plotter):
-        super(INTupdateThread, self).__init__()
-        self.plotter = plotter
-        self.stop_event = threading.Event()
-
-    def run(self):
-        try:
-            while not self.stop_event.is_set():
-                self.plotter._t_update_plot('tick')
-                sleep(0.5)
-                # self.plotter.refresh_plot_data()
-                
-        except Exception as e:
-            # Handle exceptions here or log them
-            print(f"Thread Error: {e}")
-        finally:
-            print("Thread Exiting...")
-
-    def stop(self):
-        self.stop_event.set()
         
 
