@@ -117,13 +117,10 @@ class CaptureOnClick:
         #         volume=True,
         #         figratio=(10,6),
         #         figscale=1.25,
-        #         returnfig=True, xrotation=0)
+        #         returnfig=True, xrotation=0, scale_padding=dict(left=0.03, right=0.97))
         
         self.fig, self.axes = mpf.plot(self.pair_df, type='candle', style='charles',
-                volume=True,
-                figratio=(10,6),
-                figscale=1.1,
-                returnfig=True, xrotation=0)
+                volume=True, figratio=(10,6), figscale=1.1, returnfig=True, xrotation=0)
             
  
         # get the axes to later update the existing plot with a new data:
@@ -217,6 +214,9 @@ class CaptureOnClick:
         self.volume_ax.yaxis.set_label_position("left")
         self.ax.tick_params(axis='y', labelleft=True, labelright=False, left=True, right=False)
         self.volume_ax.tick_params(axis='y', labelleft=True, labelright=False, left=True, right=False)
+
+        # plt.subplots_adjust(left=0.01, right=0.99)
+
 
         # Adjust the layout for tight plotting
         # plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, wspace=0, hspace=0)
