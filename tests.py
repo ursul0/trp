@@ -32,7 +32,7 @@ from time import sleep
 
 def main():
     
-    dp = DataProc('.\\.data\\v0.0504a\\')
+    dp = DataProc('.\\.data\\v0.06a\\')
     plotter = CaptureOnClick(data_proc=dp)
 
     # while(1):

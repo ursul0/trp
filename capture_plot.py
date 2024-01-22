@@ -99,7 +99,7 @@ class CaptureOnClick:
         # self.pair_df = pd.DataFrame(self.data_proc.pair_df).copy(deep=True)
         self.pair_df = self.dp.pair_df
         
-        self.file, self.m_file = self.dp._make_file_names()
+        self.file, self.m_file = self.dp._make_file_names_new()
         
         #debug print
         self.captured_output = ''
@@ -122,46 +122,28 @@ class CaptureOnClick:
         self.fig, self.axes = mpf.plot(self.pair_df, type='candle', style='charles',
                 volume=True,
                 figratio=(10,6),
-                figscale=1.25,
+                figscale=1.1,
                 returnfig=True, xrotation=0)
-        
-        # Adjust the layout for tight plotting
-        # plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, wspace=0, hspace=0)
-        
+            
  
-        # get the axes:
+        # get the axes to later update the existing plot with a new data:
         self.ax = self.axes[0]
         self.volume_ax = self.axes[2]
+        self._configure_axes()
 
-        self.ax.set_ylabel('Price')
-        self.volume_ax.set_ylabel('Volume')
-
-        self.fig.tight_layout()
-        self.fig.subplots_adjust(hspace=0)
-
-
+        # sample plots:
         # ap = mpf.make_addplot(self.pair_df['Close'],panel=1,type='line',ylabel='Line',mav=(5,10))
         # mpf.plot(self.pair_df,mav=10,type='candle',ylabel='Candle',addplot=ap,panel_ratios=(1,1),figratio=(1,1),figscale=1.5)
-
-        # Set the spacing between subplots to zero and adjust the layout for tight plotting
-        # plt.subplots_adjust(left=0.02, bottom=0.22, right=0.98, top=0.96, wspace=0, hspace=0)
-        # self.fig.tight_layout()
-
-        # self.fig.subplots_adjust(hspace=0)
-        # # plt.subplots_adjust(bottom=0.25)
-        # # self.fig.subplots_adjust(left=0.01, right=0.99) 
-  
-
-
               
         self.cid = self.fig.canvas.mpl_connect('button_press_event', self.on_pick)
         # def disconnect_callback(self):
         #     # Disconnect the callback using the connection id
         #     self.fig.canvas.mpl_disconnect(self.cid)
 
-           
+       # pos :             [left, bottom, width, height]    
         # Add textboxes below the axes
-        textbox_pair_pos = [0.15, 0.015, 0.12, 0.05]
+        textbox_pair_pos = [0.20, 0.015, 0.10, 0.05]
+        # textbox_pair_pos = [0.15, 0.015, 0.12, 0.05]
         textbox_interval_pos = [0.4, 0.015, 0.05, 0.05]
 
         self.tb_pair = TextBox(plt.gcf().add_axes(textbox_pair_pos), 'Pair:', \
@@ -199,18 +181,54 @@ class CaptureOnClick:
 
         self.marks_n = self.marks_store[DEF_SYMBOL]
 
-        self._add_marks2plot(sync=True)
+        self._add_marks2plot()
         self._update_plot_text(date)
 
         # Add a crosshair
-        # multi = MultiCursor(self.fig.canvas, (self.ax,), color='r', lw=1)
-        multi = MultiCursor(self.fig.canvas, (self.ax,), color='grey', lw=0.5, horizOn=True, vertOn=True)
+        if self._is_jupyter() == False:
+            multi = MultiCursor(self.fig.canvas, (self.ax,), color='blue', lw=0.3, horizOn=True, vertOn=True)
 
 
         # plt.ioff()
         # plt.show()
         mpf.show()
-  
+
+    def _is_jupyter(self):
+        try:
+            from IPython import get_ipython
+
+            ipython = get_ipython()
+
+            if ipython is not None and 'IPKernelApp' in ipython.config:
+                # Running in a Jupyter Notebook
+                return True
+            else:
+                # Not running in a Jupyter Notebook
+                return False
+
+        except ImportError:
+            # IPython module not found, not in a Jupyter environment
+            return False
+
+
+    def _configure_axes(self):
+        #configure ticks & labels for the axes
+        self.ax.yaxis.set_label_position("left")
+        self.volume_ax.yaxis.set_label_position("left")
+        self.ax.tick_params(axis='y', labelleft=True, labelright=False, left=True, right=False)
+        self.volume_ax.tick_params(axis='y', labelleft=True, labelright=False, left=True, right=False)
+
+        # Adjust the layout for tight plotting
+        # plt.subplots_adjust(left=0.05, bottom=0.1, right=0.95, top=0.9, wspace=0, hspace=0)
+        # plt.subplots_adjust(left=0.01)
+        
+        # self.fig.tight_layout()
+        # self.fig.subplots_adjust(hspace=0)
+        # self.fig.subplots_adjust(left=0.01, right=0.99) 
+        
+        # self.ax.set_ylabel('Price')
+        # self.volume_ax.set_ylabel('Volume')
+        
 
     def get_plot_data(self):   
         pair_df, pair, interval = self.dp.get_data(self.pair, self.interval, refresh = True, savedata = False)
@@ -236,52 +254,50 @@ class CaptureOnClick:
                
             return marks_store
 
-    def _add_marks2plot(self, sync= None):
+    def _add_marks2plot(self):
+        marks = self.marks_n
+        if not marks.empty:
+            # try:
+            # for mark_entry in self.marks_n 
+            for index, row in marks.iterrows():
+                # if sync == True: #resync of marks is required:
+                date = row['date']
+                price = row['price']
+                color = row['color']
+                kind = row['kind']
 
-        # index = -1    
-        df = self.marks_n
-        if not df.empty:
-            try:
-                # for mark_entry in self.marks_n:
-                for index, row in df.iterrows():
-                    if sync == True: #resync of marks is required:
-                        date = row['date']
-                        price = row['price']
-                        color = row['color']
-                        kind = row['kind']
+                #find current plot x coordinate for the mark
+                dfp = self.pair_df
+                nearest_timestamp = dfp.index.asof(date)
+                if pd.isna(nearest_timestamp):
+                    self.captured_output = f'mark at {date} is outside of the axes data'
+                    self._print_debug(self.captured_output)
+                    continue
 
-                        #get updated x coordinate for the mark
-                        dfp = self.pair_df
-                        nearest_timestamp = dfp.index.asof(date)
-                        if pd.isna(nearest_timestamp):
-                            self.captured_output = f'mark at {date} is outside of the axes data'
-                            self._print_debug(self.captured_output)
-                            continue
+                # x_coord = dfp.index.get_loc(nearest_timestamp)
+                
+                # Find the next occurrence where the mark 'price' is between 'Low' and 'High' 
+                # in case we moved from larger to smaller period and need to find the correct candle
+                next_occurrence = dfp[(dfp.index >= nearest_timestamp) & (dfp['Low'] <= price) & (dfp['High'] >= price)].iloc[0]
+                x_coord = dfp.index.get_loc(next_occurrence.name) #.name returns associated index label
+                self.captured_output = f'date: {date}, x_coord: {x_coord}'
+                
+                obj_cl = self._draw_ellipse(x_coord, price, color, kind)
+                
+                if next_occurrence.name > date:
+                    #we found more presice candle location, on a lower interval. update the mark
+                    marks.at[index, 'date'] = next_occurrence.name
 
-                        # x_coord = dfp.index.get_loc(nearest_timestamp)
-                        
-                        # Find the next occurrence where 'Low' is lower or equal to the 'price'
-                        # in case we moved from larger to smaller period and need to find the correct candle
-                        next_occurrence = dfp[(dfp.index >= nearest_timestamp) & (dfp['Low'] <= price) & (dfp['High'] >= price)].iloc[0]
-                        x_coord = dfp.index.get_loc(next_occurrence.name) #.name returns associated index label
-                        self.captured_output = f'date: {date}, x_coord: {x_coord}'
-    
-                        
-                        obj_cl = self._draw_ellipse(x_coord, price, color, kind)
-                        
-                        df.at[index, 'x'] = x_coord
-                        # df.at[index, 'price'] = price
-                        df.at[index, 'obj'] = obj_cl
+                marks.at[index, 'x'] = x_coord
+                marks.at[index, 'obj'] = obj_cl
 
-                    else:    
-                        obj_cl = row['obj'] 
-                        if obj_cl is not None:
-                            self.ax.add_patch(obj_cl) 
-
-                    
+                # else:    
+                #     obj_cl = row['obj'] 
+                #     if obj_cl is not None:
+                #         self.ax.add_patch(obj_cl) 
         
-            except IndexError:
-                self._print_debug(f'self.marks_n is empty!')
+            # except IndexError:
+            #     self._print_debug(f'self.marks_n is empty!')
         
         # return index
       
@@ -297,18 +313,20 @@ class CaptureOnClick:
             if DEBUG_PRINT == 1:
                 print(self.captured_output)
 
-    #update plot,  from refresher thread
+    #update plot
     def _t_update_plot(self, date):
  
         # if self.run_refresh_flag == True:
         #     self.refresh_plot_data()
 
-        self._redraw_plot() #add processing of the last candle + ticker? sepparate endpoint?
+        self._redraw_plot() #add processing of the last candle + maybe add ticker
 
-        if self.f_marks_resync == True:
-            self._add_marks2plot(sync=True)
-        else:
-            self._add_marks2plot(sync=False)
+        self._add_marks2plot()
+
+        # if self.f_marks_resync == True:
+        #     self._add_marks2plot(sync=True)
+        # else:
+        #     self._add_marks2plot(sync=False)
 
         self._update_plot_text(date) #kk for now
         self.ax.figure.canvas.draw()
@@ -328,53 +346,41 @@ class CaptureOnClick:
     #     self.ax.figure.canvas.draw()
             
     def _redraw_plot(self):
-        #TODO reveiew and rewrite
-        
-        
         # no check if empty(why would it be?) and has last candle only
         if self.pair_df.shape[0] == TOTAL_CANDLES:
             # #draw new data, including new interval
             self.ax.clear()
             self.volume_ax.clear()
 
-            # # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500) 
-            # mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, \
-            #           ax=self.ax, warn_too_much_data=2500, xrotation=0)
-  
             # Update the plot with the new data
             mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, \
                      ax=self.ax, warn_too_much_data=2500, xrotation=0)
             
-            self.ax.set_ylabel('Price')
-            self.volume_ax.set_ylabel('Volume')
-            
+            self._configure_axes()
             # Redraw the figure
             self.fig.canvas.draw()
 
-            
+        #we will never get here:     
         elif self.pair_df.shape[0] == INTERVALS_ON_APPEND:
-            #TODO: update only the last candle, not whole plot 
-            #update last v-line/candle on a plot
-
-            self.ax.clear()
-            self.volume_ax.clear()
             
-            # mpf.plot(self.pair_df, type='candle', ax=self.ax, warn_too_much_data=2500)
-
+            
+            #TODO: update only the last candle, not the whole plot 
+            
+ 
+            # self.ax.clear()
+            # self.volume_ax.clear()
+            
             # mpf.plot(self.pair_df, type='candle', style='charles', volume=self.volume_ax, \
             #          ax=self.ax, warn_too_much_data=2500, xrotation=0)
             
             updated_data = self.pair_df.iloc[-INTERVALS_ON_APPEND:]
             self.ax.plot(updated_data.index, updated_data['Close'], label='Close')
 
-
-            self.ax.set_ylabel('Price')
-            self.volume_ax.set_ylabel('Volume')
+            # self._configure_axes()
 
             # Redraw the figure
-            self.fig.canvas.draw()
-            # line.set_xdata([updated_position])
-            self._print_debug('TODO: update last line on a plot!')
+            # self.fig.canvas.draw()
+
         else:
             self._print_debug('_redraw_plot: WTF?')
        
@@ -382,6 +388,7 @@ class CaptureOnClick:
         # self.ax.set_title(f'[Binance]:   {self.pair} | {self.interval} | {date}')
         utm = self.dp.data_map[self.pair][self.interval]['Updated']
         self.ax.set_title(f' {self.pair} | {self.interval} | Last candle: {date} | Update time: {utm}')
+        #why would it be anything else, but ok:
         self.tb_pair.set_val(self.pair)
         self.tb_interval.set_val(self.interval)
 
@@ -429,8 +436,9 @@ class CaptureOnClick:
                     #get actual data coordinates:
                     price = y_coord
                     date = df.index[round(x_coord)]  
+
+                    self._print_debug(f"Clicked coords: ({x_coord}, {y_coord}, date: {date})")
                     
-                    self.captured_output = f"Clicked coords: ({x_coord}, {y_coord}, date: {date})"            
                   
                     if event.key == 'alt' and event.button == 3:
                         # alt +right click: Remove the nearest mark on axes
@@ -492,14 +500,12 @@ class CaptureOnClick:
                
                     self.ax.figure.canvas.draw()
                 else:
-                    self.captured_output ="Clicked outside the valid range of indices"
+                    self._print_debug("Clicked outside the valid range of indices")
             else:
-                self.captured_output ="Invalid click coordinates"
+                self._print_debug("Invalid coordinates")
         # Click occurred outside the axes
         else:
-            self.captured_output ="Clicked outside the axes"   
-        
-        self._print_debug(self.captured_output)
+            self._print_debug("Clicked outside the axes")   
 
     #handle UI events
     def on_pick(self, event):
@@ -512,7 +518,6 @@ class CaptureOnClick:
             # self.captured_output += f' on_pick(): Figure clicked at: ({event.x},{event.y}) | '
             if event.key is not None:
                 self._print_debug(event)
-
     
     def on_tb_pair_submit(self, text): 
         
@@ -591,7 +596,7 @@ class CaptureOnClick:
         #     return         
         if event.name == 'button_release_event':
             self._save_m_to_file()
-            self.captured_output = f'Saved marks data in: {self.m_file}'
+            self._print_debug(f'Saved marks data in: {self.m_file}')
             
      
     # def on_checkbox_clicked(self, label):
@@ -632,8 +637,9 @@ class CaptureOnClick:
         with open(self.m_file, 'wb') as file:
             # pickle.dump(self.marks_store, file)
             pickle.dump(marks_store_copy, file)
+        
+        self._print_debug(f'Saved marks into: {self.m_file}')
 
-        self.captured_output = f'Saved marks into: {self.m_file}'
 
 
         

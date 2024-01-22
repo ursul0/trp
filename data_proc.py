@@ -53,7 +53,7 @@ class DataProc:
         
         #files
         self.savedata = True
-        self.file, self.m_file = self._make_file_names()
+        self.file, self.m_file = self._make_file_names_new()
        
         #data structures
         # self.pair_df = None
@@ -68,13 +68,13 @@ class DataProc:
         #pass API keys
         return bnc_key, bnc_sec
  
-    def set_data_details(self, pair, interval, candles):
-        self.pair = pair
-        self.interval = interval
-        self.candles= candles
-        current_datetime = datetime.today()
-        self.file, self.m_file = self._make_file_names(self, pair, current_datetime)
-        return self.file, self.m_file
+    # def set_data_details(self, pair, interval, candles):
+    #     self.pair = pair
+    #     self.interval = interval
+    #     self.candles= candles
+    #     current_datetime = datetime.today()
+    #     self.file, self.m_file = self._make_file_names(self, pair, current_datetime)
+    #     return self.file, self.m_file
     
     def _create_data_store(self):
         data_store = {}
@@ -347,6 +347,20 @@ class DataProc:
         m_file = path+m_file
 
         return file, m_file
+
+    def _make_file_names_new(self):
+    
+
+            path = self.path
+            
+            # file = pair+'-'+interval+current_date+'.csv'
+            file = 'datastore.pkl'
+            m_file = 'marks.pkl'
+
+            file = path+file
+            m_file = path+m_file
+
+            return file, m_file
 
     def _calculate_data_span(self, candle_count, period):
     # Map period to timedelta
