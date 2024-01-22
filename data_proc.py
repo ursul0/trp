@@ -28,7 +28,7 @@ INTERVALS_ON_APPEND = 1
 TOTAL_CANDLES = 100
 
 DEF_SYMBOL = 'BTCUSDT'
-DEF_INTERVAL ='15m'
+DEF_INTERVAL ='4h'
 
 DATA_REFRESH_RATE = 1 #data refresh in candles (one means we poll the candle historical data)
 
